@@ -1,7 +1,7 @@
 # Phase 2 implementation handoff
 
 Date: 2026-07-23
-Status: RepoOS foundation and transactional fixture engine complete locally; real canary blocked
+Status: RepoOS foundation and transactional fixture engine complete locally; readiness audit complete; real canary blocked
 
 ## Repository state
 
@@ -100,6 +100,26 @@ Fixture success does not make P08 or any other real repository eligible. Before 
 read-only Git/GitHub evidence and confirm identity, lifecycle, sensitivity, commands, family,
 ownership, base/upstream, worktree disposition, and exact target authorization.
 
+## Canary readiness refresh
+
+The dated [readiness packet](canary-readiness/2026-07-23/README.md) completed that read-only
+evidence refresh using only P08, P04-A, and P04-B aliases. Exact mappings remain in the ignored
+private overlay.
+
+- P08 identity, canonical private GitHub repository, live `main`, active lifecycle, Python
+  CLI/application family, ownership proposal, and offline validation commands are confirmed.
+- The historical 16-record/15-prunable P08 snapshot is stale. Current authoritative state is two
+  valid records and zero prunable records.
+- P08's primary checkout is clean but 29 commits behind after its branch merged. Its second
+  worktree contains 18 untracked implementation files and must be preserved.
+- The live default-branch tracked state passes Product CI and AgentOps local equivalents.
+- Sensitivity remains a user-approved decision; evidence supports personal-data risk.
+- RepoOS `0.2.0` cannot authorize a real repository or bootstrap an absent adoption manifest. A
+  bounded synthetic-only engine issue is required first.
+- P08 remains provisional but `blocked`; P04-B is `unsuitable_as_first_canary`.
+
+No downstream or GitHub mutation was performed by the readiness audit.
+
 ## Safety confirmation
 
 - No downstream or dirty portfolio repository was modified.
@@ -115,5 +135,6 @@ ownership, base/upstream, worktree disposition, and exact target authorization.
 
 ## Next gate
 
-Perform a read-only canary-readiness refresh and rank the clean candidates. Do not adopt a canary
-until ROS-011 receives exact target authorization and every eligibility blocker is resolved.
+Run the preservation-first read-only P08 hygiene prompt from the readiness packet. Separately
+implement the synthetic-only real-repository manifest-bootstrap gate. Do not adopt a canary until
+ROS-011 receives exact target authorization and every repository and engine blocker is resolved.

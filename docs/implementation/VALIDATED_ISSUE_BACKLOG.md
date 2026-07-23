@@ -239,12 +239,19 @@ Every issue preserves unrelated work, keeps private evidence out of public artif
 - **Acceptance criteria:** approved identity/risk/commands/family/ownership; clean state; reviewed diffs; checks pass; post-adoption plan no-op; forward rollback demonstrated.
 - **Files expected to change:** P08 `.repoos/project.yaml` and one explicitly approved component, plus RepoOS adoption record.
 - **Validation commands:** exact P08 commands only after user confirmation; RepoOS plan/apply/rollback checks.
-- **Risks:** stale upstream, worktree ambiguity, behavior regression, private metadata leakage.
+- **Risks:** active untracked work, stale base, behavior regression, private metadata leakage, and
+  attempting manifest bootstrap through the fixture-only product gate.
 - **Rollback:** forward PR to the previous version plus local backup for uncommitted failure.
 - **Parallelization group:** A5, single downstream writer.
 - **Execution wave:** 4.
-- **Status:** blocked—authorization and Git reconciliation required.
-- **Local evidence:** P08 is clean but its upstream is gone and 15 worktree records are prunable.
+- **Status:** blocked—preservation-first worktree hygiene, authorization, and a separately validated
+  real-repository manifest-bootstrap gate are required.
+- **Local evidence:** the
+  [2026-07-23 readiness packet](../../reports/canary-readiness/2026-07-23/README.md) confirms two
+  current P08 worktrees and zero prunable records. The primary checkout is clean but 29 commits
+  behind after merge; the secondary has 18 untracked implementation files. The historical
+  16-record/15-prunable snapshot is stale. RepoOS `0.2.0` cannot plan an absent manifest or execute
+  against an unmarked real repository.
 
 ## ROS-012 — Govern broad rollout and high-authority extensions
 
