@@ -154,7 +154,9 @@
     "real_canary_authorized": false,
     "fallback_preferred": false,
     "next_outcome": "p08_requires_hygiene_first",
-    "next_prompt": "13_NEXT_CANARY_ADOPTION_PROMPT.md"
+    "next_prompt": "13_NEXT_CANARY_ADOPTION_PROMPT.md",
+    "next_prompt_status": "executed_no_downstream_change",
+    "execution_record": "../../canary-hygiene/2026-07-23/README.md"
   },
   "safety": {
     "downstream_writes": 0,

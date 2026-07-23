@@ -1,6 +1,7 @@
 # Canary selection
 
-Status: readiness refreshed 2026-07-23; P08 remains provisional and blocked
+Status: readiness and preservation-first hygiene refreshed 2026-07-23; P08 remains provisional
+and blocked
 
 ## Historical foundation assessment
 
@@ -30,6 +31,20 @@ The earlier “upstream gone” finding is now resolved: P08's repository and re
 primary local issue branch's remote ref is gone after its pull request merged. It should not be
 repaired or reused as the canary base.
 
+## Preservation-first hygiene result
+
+The
+[2026-07-23 preservation packet](../../reports/canary-hygiene/2026-07-23/README.md)
+revalidated the exact two-worktree state, GitHub state, workflow conclusions, access, and open
+pull-request overlap without finding a stop-condition delta. No cleanup is indicated. Both
+worktrees remain untouched, and the canary is deferred.
+
+P08 can become `eligible_after_repository_hygiene` after P08-W2 receives an owner-directed,
+lossless disposition and a fresh issue-linked base can be established without touching preserved
+work. That conditional label describes repository hygiene only. P08 remains blocked now and is not
+engine-ready; the separate real-repository manifest-bootstrap enhancement must still pass
+synthetic verification.
+
 ## Selection
 
 P08 remains the only provisional candidate. This is a relative ranking, not approval. A real canary
@@ -48,10 +63,12 @@ repository-owned validation, no-op repeat, and forward rollback all succeed.
 
 ## Human decisions
 
-Only the unresolved decisions in
+The unresolved canary decisions in
 [12_USER_CONFIRMATION_REQUIRED.md](../../reports/canary-readiness/2026-07-23/12_USER_CONFIRMATION_REQUIRED.md)
+and the preservation choices in
+[02_ALTERNATIVES_AND_APPROVALS.md](../../reports/canary-hygiene/2026-07-23/02_ALTERNATIVES_AND_APPROVALS.md)
 remain. Identity, canonical remote, lifecycle, default branch, validation commands, family
-classification, and current worktree count are evidence-backed facts.
+classification, and current worktree state are evidence-backed facts.
 
 ## Stop decision
 

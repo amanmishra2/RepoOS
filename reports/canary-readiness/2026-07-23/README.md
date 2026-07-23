@@ -37,8 +37,11 @@ No downstream write, cleanup, Git repair, GitHub mutation, or canary adoption wa
 | [10_CANARY_SCORECARD.md](10_CANARY_SCORECARD.md) | Criterion-by-criterion decision |
 | [11_REMEDIATION_PLAN.md](11_REMEDIATION_PLAN.md) | Required and optional follow-up |
 | [12_USER_CONFIRMATION_REQUIRED.md](12_USER_CONFIRMATION_REQUIRED.md) | Remaining human decisions |
-| [13_NEXT_CANARY_ADOPTION_PROMPT.md](13_NEXT_CANARY_ADOPTION_PROMPT.md) | Next read-only hygiene prompt; not executed |
+| [13_NEXT_CANARY_ADOPTION_PROMPT.md](13_NEXT_CANARY_ADOPTION_PROMPT.md) | Read-only hygiene prompt; executed without downstream change |
 | [canary-readiness.json](canary-readiness.json) | Deterministic machine-readable summary |
+
+Execution record:
+[canary-hygiene/2026-07-23](../../canary-hygiene/2026-07-23/README.md).
 
 ## Evidence limits
 

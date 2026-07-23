@@ -1,7 +1,8 @@
 # Next prompt: P08 read-only hygiene and gate preparation
 
-Outcome: P08 requires hygiene first.
-This prompt is drafted only and was not executed.
+Outcome: executed 2026-07-23 without downstream change. P08 remains blocked.
+Execution record:
+[canary-hygiene/2026-07-23](../../canary-hygiene/2026-07-23/README.md).
 
 ```text
 # P08 Read-Only Canary Hygiene and Gate Preparation

@@ -1,0 +1,109 @@
+{
+  "schema_version": "repoos.canary-hygiene.v1",
+  "audit_date": "2026-07-23",
+  "mode": "read_only",
+  "publishability": "public_safe",
+  "source_packet": "../../canary-readiness/2026-07-23/README.md",
+  "project_id": "P08",
+  "repoos": {
+    "version": "0.2.0",
+    "expected_audit_commit_present": true,
+    "start_clean": true
+  },
+  "private_overlay": {
+    "schema_valid": true,
+    "ignored": true,
+    "tracked": false,
+    "exact_values_redacted": true
+  },
+  "state": {
+    "unchanged_from_readiness_packet": true,
+    "stop_condition_triggered": false,
+    "worktree_records": 2,
+    "locked_records": 0,
+    "prunable_records": 0,
+    "prune_dry_run_candidates": 0,
+    "P08-W1": {
+      "present": true,
+      "readable": true,
+      "head_matches": true,
+      "status_fingerprint_matches": true,
+      "tracked_changes": 0,
+      "untracked_entries": 0,
+      "unique_local_commits": 0,
+      "behind_live_main": 29,
+      "head_reachable_from_live_main": true,
+      "pull_request_merged": true,
+      "remote_branch_present": false
+    },
+    "P08-W2": {
+      "present": true,
+      "readable": true,
+      "head_matches": true,
+      "status_fingerprint_matches": true,
+      "tracked_changes": 0,
+      "untracked_entries": 18,
+      "conflicts": 0,
+      "unique_local_commits": 0,
+      "owning_issue_open": true,
+      "pull_request_present": false,
+      "remote_branch_present": false,
+      "untracked_bodies_read": false
+    }
+  },
+  "github": {
+    "identity_unchanged": true,
+    "live_main_unchanged": true,
+    "open_pull_requests": 1,
+    "open_pull_request_files": 4,
+    "open_pull_request_manifest_overlap": false,
+    "active_workflows": 5,
+    "product_ci": "success",
+    "agentops": "success",
+    "later_pull_request_access_sufficient": true
+  },
+  "decision": {
+    "selected_alternative": "leave_untouched_and_defer",
+    "current_classification": "blocked",
+    "can_become": "eligible_after_repository_hygiene",
+    "engine_ready": false,
+    "real_repository_manifest_bootstrap_required": true,
+    "automatic_cleanup_recommended": false,
+    "downstream_mutation_authorized": false
+  },
+  "alternatives": [
+    {
+      "id": "leave_untouched_and_defer",
+      "mutation": false,
+      "selected": true
+    },
+    {
+      "id": "owner_directed_P08-W2_completion_or_preservation",
+      "mutation": "separate_explicit_approval_required",
+      "selected": false
+    },
+    {
+      "id": "later_P08-W1_retirement_or_realignment",
+      "mutation": "separate_explicit_approval_required_if_git_changes",
+      "selected": false
+    },
+    {
+      "id": "fresh_issue_linked_canary_worktree",
+      "mutation": "separate_explicit_approval_required_after_all_gates",
+      "selected": false
+    }
+  ],
+  "safety": {
+    "downstream_writes": 0,
+    "worktree_create_remove_prune_repair": false,
+    "branch_or_upstream_changes": false,
+    "remote_changes": false,
+    "github_resources_changed": false,
+    "user_global_files_changed": false,
+    "P04-A_changed": false,
+    "P04-B_changed": false,
+    "push_performed": false,
+    "pull_request_opened": false,
+    "likely_secret_files_opened": false
+  }
+}
