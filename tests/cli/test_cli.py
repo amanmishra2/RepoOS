@@ -22,6 +22,8 @@ def test_top_level_help_lists_minimum_commands() -> None:
         "check-update",
         "plan-update",
         "apply",
+        "rollback",
+        "transaction",
         "report",
     ):
         assert command in help_text
@@ -92,7 +94,7 @@ def test_invalid_document_has_stable_exit_code(
     assert json.loads(captured.err)["error"]["type"] == "validation_failed"
 
 
-def test_apply_execute_is_refused_before_reading_plan(
+def test_apply_execute_requires_an_existing_plan(
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,
 ) -> None:
@@ -111,8 +113,8 @@ def test_apply_execute_is_refused_before_reading_plan(
         ]
     )
     captured = capsys.readouterr()
-    assert exit_code == 9
-    assert json.loads(captured.err)["error"]["type"] == "authorization_required"
+    assert exit_code == 2
+    assert json.loads(captured.err)["error"]["type"] == "invalid_input"
 
 
 def test_plan_output_inside_target_is_refused(
@@ -152,3 +154,115 @@ def test_report_normalizes_json(capsys: pytest.CaptureFixture[str], tmp_path: Pa
     value = json.loads(captured.out)
     assert exit_code == 0
     assert value["document"] == {"a": 2, "z": 1}
+
+
+def test_transactional_cli_end_to_end_json(
+    capsys: pytest.CaptureFixture[str],
+    repoos_fixture: Path,
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "value.txt").write_text("managed\n", encoding="utf-8")
+    plan_path = tmp_path / "plan.json"
+    state = tmp_path / "state"
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "plan-update",
+            "--repo",
+            str(repoos_fixture),
+            "--source-root",
+            str(source),
+            "--file",
+            "value.txt=managed/value.txt",
+            "--output",
+            str(plan_path),
+        ]
+    )
+    planned = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert planned["operation_count"] == 1
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "apply",
+            "--plan",
+            str(plan_path),
+            "--dry-run",
+        ]
+    )
+    preview = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert preview["would_apply"] is True
+    assert preview["state_writes_performed"] == 0
+    assert not state.exists()
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "apply",
+            "--plan",
+            str(plan_path),
+            "--execute",
+        ]
+    )
+    applied = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    transaction_id = applied["transaction_id"]
+    assert applied["state"] == "completed"
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "transaction",
+            "show",
+            transaction_id,
+        ]
+    )
+    shown = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert shown["transaction"]["state"] == "completed"
+    assert shown["transaction"]["affected_files"][0]["ownership"] == "managed_file"
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "transaction",
+            "list",
+        ]
+    )
+    listed = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert listed["count"] == 1
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "rollback",
+            "--transaction",
+            transaction_id,
+        ]
+    )
+    rolled_back = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert rolled_back["state"] == "rolled_back"
+    assert not (repoos_fixture / "managed" / "value.txt").exists()

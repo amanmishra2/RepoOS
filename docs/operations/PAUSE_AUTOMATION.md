@@ -12,4 +12,12 @@ Read status:
 repoos --format json status --project /explicit/project
 ```
 
-The CLI does not create or remove the pause file automatically. Operators control it locally. A future mutation path must recheck pause before planning and before every write boundary.
+The CLI does not create or remove the pause file automatically. Operators control it locally.
+
+The `0.2.0` fixture engine checks pause during plan application preconditions, again while holding
+the repository lock, and immediately before every target-file write. A pause before any target
+write produces a failed transaction attempt without a backup-dependent restore. A pause after an
+earlier file write stops later writes and triggers automatic rollback.
+
+Dry-run reports the pause but creates no state. Pause does not delete or bypass a lock, and removing
+the pause does not recover an interrupted transaction automatically.

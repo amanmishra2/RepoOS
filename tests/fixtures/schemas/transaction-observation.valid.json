@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "transaction_id": "tx-20260723T120000Z-aaaaaaaaaaaa",
+  "outcome": "completed",
+  "component_types": ["managed_file"],
+  "file_count": 1,
+  "conflict_types": [],
+  "validation_result": "passed",
+  "rollback_result": "not_required",
+  "duration_ms": 125,
+  "safety_limit_overrides": [],
+  "failure_classification": null,
+  "recorded_at": "2026-07-23T12:00:01Z",
+  "publishability": "public_safe"
+}

@@ -23,6 +23,9 @@ _SCHEMAS = {
     "candidate-pattern": "candidate-pattern.schema.json",
     "adoption-record": "adoption-record.schema.json",
     "update-plan": "update-plan.schema.json",
+    "transaction": "transaction.schema.json",
+    "backup-manifest": "backup-manifest.schema.json",
+    "transaction-observation": "transaction-observation.schema.json",
 }
 _HOOK_EVENTS = {
     "SessionStart",
@@ -122,6 +125,23 @@ def validate_document(
     directory: str | Path | None = None,
 ) -> list[ValidationFinding]:
     instance = load_document(document)
+    return validate_instance(
+        instance,
+        schema_name,
+        directory=directory,
+        source=str(Path(document)),
+    )
+
+
+def validate_instance(
+    instance: Any,
+    schema_name: str,
+    *,
+    directory: str | Path | None = None,
+    source: str = "<memory>",
+) -> list[ValidationFinding]:
+    """Validate an in-memory value before it is persisted."""
+
     schema = load_schema(schema_name, directory=directory)
     validator = jsonschema.Draft202012Validator(
         schema,
@@ -132,7 +152,7 @@ def validate_document(
         location = "/".join(str(part) for part in error.absolute_path) or "<root>"
         findings.append(
             ValidationFinding(
-                str(Path(document)),
+                source,
                 f"{location}: {error.message}",
             )
         )

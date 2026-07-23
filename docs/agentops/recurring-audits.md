@@ -22,4 +22,5 @@ Generate plans only for explicit clean targets with confirmed ownership and comm
 
 Review ownership collisions, exception rate, rollback readiness, action pins, schema compatibility, confidentiality, and whether any overlay still has at least two valid consumers.
 
-No schedule is installed by RepoOS `0.1.0`; operators may invoke these manually or through read-only CI after review.
+No schedule is installed by RepoOS `0.2.0`; operators may invoke these manually or through
+read-only CI after review.

@@ -45,6 +45,9 @@ def test_repoos_manifest_is_valid() -> None:
         ("candidate-pattern", {"schema_version": 1, "unknown": True}),
         ("adoption-record", {"schema_version": 1, "unknown": True}),
         ("update-plan", {"schema_version": 1, "unknown": True}),
+        ("transaction", {"schema_version": 1, "unknown": True}),
+        ("backup-manifest", {"schema_version": 1, "unknown": True}),
+        ("transaction-observation", {"schema_version": 1, "unknown": True}),
     ],
 )
 def test_invalid_minimal_documents_are_rejected(
@@ -112,3 +115,35 @@ def test_update_plan_rejects_parent_traversal(tmp_path: Path) -> None:
     findings = validate_document(path, "update-plan")
     assert findings
     assert any("operations/0/source" in finding.message for finding in findings)
+
+
+@pytest.mark.parametrize(
+    ("schema_name", "fixture_name"),
+    [
+        ("transaction", "transaction.valid.json"),
+        ("backup-manifest", "backup-manifest.valid.json"),
+        ("transaction-observation", "transaction-observation.valid.json"),
+    ],
+)
+def test_transactional_schema_fixtures_are_valid(
+    schema_name: str,
+    fixture_name: str,
+) -> None:
+    fixture = repo_root() / "tests" / "fixtures" / "schemas" / fixture_name
+    assert validate_document(fixture, schema_name) == []
+
+
+@pytest.mark.parametrize(
+    ("schema_name", "fixture_name"),
+    [
+        ("transaction", "transaction.invalid.json"),
+        ("backup-manifest", "backup-manifest.invalid.json"),
+        ("transaction-observation", "transaction-observation.invalid.json"),
+    ],
+)
+def test_transactional_invalid_schema_fixtures_are_rejected(
+    schema_name: str,
+    fixture_name: str,
+) -> None:
+    fixture = repo_root() / "tests" / "fixtures" / "schemas" / fixture_name
+    assert validate_document(fixture, schema_name)

@@ -100,20 +100,21 @@ def test_plan_enforces_change_limits(repoos_fixture: Path, tmp_path: Path) -> No
         max_files=1,
         max_bytes=1,
     )
-    assert "max_bytes_exceeded" in plan["conflicts"]
+    assert "max_total_bytes_changed" in plan["safety"]["violations"]
 
 
 def test_plan_records_directory_target_conflict(repoos_fixture: Path, tmp_path: Path) -> None:
     source = _source_root(tmp_path)
     (repoos_fixture / "managed").mkdir()
     (repoos_fixture / "managed" / "component.txt").mkdir()
-    plan = build_update_plan(
-        repoos_fixture,
-        source,
-        ["component.txt=managed/component.txt"],
-        target_version="0.1.0",
-    )
-    assert "target_not_regular_file:managed/component.txt" in plan["conflicts"]
+    with pytest.raises(RepoOSError) as caught:
+        build_update_plan(
+            repoos_fixture,
+            source,
+            ["component.txt=managed/component.txt"],
+            target_version="0.2.0",
+        )
+    assert caught.value.details["conflict_type"] == "target_not_regular_file"
 
 
 def test_apply_dry_run_revalidates_without_writing(repoos_fixture: Path, tmp_path: Path) -> None:

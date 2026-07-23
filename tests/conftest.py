@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 from pathlib import Path
 
 import pytest
+
+from repoos import __version__
 
 
 def git(repository: Path, *arguments: str) -> str:
@@ -33,6 +36,59 @@ def git(repository: Path, *arguments: str) -> str:
     return result.stdout
 
 
+def create_repoos_fixture(
+    repository: Path,
+    *,
+    validation_argv: list[str] | None = None,
+) -> Path:
+    """Create a disposable, committed, explicitly marked fixture repository."""
+
+    repository.mkdir()
+    git(repository, "init", "-b", "main")
+    (repository / "README.md").write_text("fixture\n", encoding="utf-8")
+    git(repository, "add", "README.md")
+    git(repository, "commit", "-m", "Initial fixture")
+    (repository / ".repoos-fixture").write_text("neutral fixture only\n", encoding="utf-8")
+    manifest_directory = repository / ".repoos"
+    manifest_directory.mkdir()
+    command = validation_argv or ["python3", "-c", "print('fixture')"]
+    (manifest_directory / "project.yaml").write_text(
+        "\n".join(
+            [
+                "manifest_version: 1",
+                "project_id: neutral-fixture",
+                f"repoos_version: {__version__}",
+                "project_family: null",
+                "additional_overlays: []",
+                "components:",
+                "  managed: []",
+                "  generated: []",
+                "  repository_owned: [fixture-source]",
+                "  extensions: []",
+                "  excluded: []",
+                "adoption_channel: experimental",
+                "local_overrides: []",
+                "verification:",
+                "  - name: tests",
+                f"    argv: {json.dumps(command)}",
+                "automation_permissions:",
+                "  read_only: true",
+                "  plan: true",
+                "  apply: true",
+                "  commit: false",
+                "  push: false",
+                "  external_settings: false",
+                "last_successful_audit: null",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    git(repository, "add", ".repoos-fixture", ".repoos/project.yaml")
+    git(repository, "commit", "-m", "Mark neutral RepoOS fixture")
+    return repository
+
+
 @pytest.fixture
 def git_repository(tmp_path: Path) -> Path:
     repository = tmp_path / "repository"
@@ -55,7 +111,7 @@ def repoos_fixture(git_repository: Path) -> Path:
             [
                 "manifest_version: 1",
                 "project_id: neutral-fixture",
-                "repoos_version: 0.1.0",
+                f"repoos_version: {__version__}",
                 "project_family: null",
                 "additional_overlays: []",
                 "components:",
@@ -72,7 +128,7 @@ def repoos_fixture(git_repository: Path) -> Path:
                 "automation_permissions:",
                 "  read_only: true",
                 "  plan: true",
-                "  apply: false",
+                "  apply: true",
                 "  commit: false",
                 "  push: false",
                 "  external_settings: false",

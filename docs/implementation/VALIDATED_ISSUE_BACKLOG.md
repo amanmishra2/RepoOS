@@ -114,17 +114,55 @@ Every issue preserves unrelated work, keeps private evidence out of public artif
 ## ROS-006 — Implement fixture-only planning, apply, backup, and rollback
 
 - **Objective:** prove update safety against disposable repositories before any canary.
-- **Detailed scope:** ownership resolution; canonical plan ID; dry-run default; explicit execute; common-Git lock; dirty/stale refusal; limits; operation journal; backups; atomic replace; configured validation; restoration; rollback metadata.
-- **Out of scope:** real portfolio writes, commit, push, PR, managed sections, or multi-repository mutation.
-- **Dependencies:** ROS-005.
-- **Acceptance criteria:** clean/local-edit/delete/conflict/binary/symlink/stale/dirty/lock fixtures; failure injection after each write; successful restore; idempotent reapply; no implicit commit/push.
-- **Files expected to change:** `src/repoos/ownership.py`, `planning.py`, `apply.py`, `backup.py`, `journal.py`, fixture tests.
-- **Validation commands:** `pytest tests/integration/test_plan_apply.py tests/security`; process-level Git-command allowlist test.
-- **Risks:** partial writes and false atomicity.
-- **Rollback:** journal-driven fixture restore; revert implementation files from Git.
+- **Detailed scope:** deterministic fixture update planning and plan digest; fully managed,
+  generated, and uniquely marked text-section operations; explicit preservation/refusal for
+  repository-owned extensions, local overrides, and excluded files; immutable transaction
+  records and state machine; process-visible global metadata and common-Git write locks; explicit
+  stale-lock recovery; pre-write safety limits; approved-path-only atomic backups and writes;
+  bounded repository validation; automatic restoration; explicit manual rollback; public-safe
+  transaction observations; JSON/human CLI output and stable failure exits.
+- **Out of scope:** every real portfolio write; repository adoption; commit, push, PR, or GitHub
+  mutation; user-global installation; release publication; broad or multi-repository rollout;
+  automatic learning promotion; structured-file section management; deletion in the initial
+  executable engine; or any operation against an unmarked repository.
+- **Dependencies:** ROS-005; ROS-004 schema conventions; ROS-009 neutral-fixture harness. A real
+  canary continues to depend on ROS-008 and separate explicit authorization through ROS-011.
+- **Acceptance criteria:** the plan binds repository identity/path fingerprint, planning HEAD and
+  status fingerprint, manifest/update-plan/RepoOS versions, components, ownership modes, source
+  and target hashes, managed-section boundaries, intended hashes, validation commands, and all
+  safety measurements; canonical digest tampering or stale preconditions fail before target
+  writes and still create a content-free failed-attempt record; invalid transaction transitions
+  fail deterministically; global metadata locking and per-common-Git write locking permit safe
+  concurrency across different fixtures while refusing same-target contention; stale and malformed
+  locks require explicit recovery; an atomically finalized, integrity-checked backup exists before
+  the first target write; only approved regular files beneath the fixture root are backed up or
+  written; unsafe symlinks/traversal and unsupported ownership are refused; managed-section
+  ambiguity or local inside/outside edits are refused; configurable conservative limits are
+  enforced before writes and overrides are recorded; failure injection after every write/validation/
+  rollback boundary proves stop-on-first-failure and byte-for-byte restoration; validation failure
+  automatically rolls back; manual rollback is locked, integrity-checked, drift-aware, bounded,
+  and idempotent; dry-run creates no target or transaction state; repeated apply is a no-op or
+  deterministic refusal; transaction show/list and learning summaries contain no file contents,
+  secret values, environment values, authentication data, or unbounded output; no Git mutation
+  command is used.
+- **Files expected to change:** `schemas/update-plan.schema.json`,
+  `schemas/transaction.schema.json`, `schemas/backup-manifest.schema.json`,
+  `schemas/transaction-observation.schema.json`, `src/repoos/planning.py`,
+  `src/repoos/ownership.py`, `src/repoos/transactions.py`, `src/repoos/locks.py`,
+  `src/repoos/backup.py`, `src/repoos/apply.py`, `src/repoos/cli.py`, fixture tests, and the
+  authoritative architecture/operations/reference documentation.
+- **Validation commands:** `make verify`; targeted schema, state-machine, managed-section, lock,
+  failure-injection, automatic/manual rollback, byte-restoration, dry-run, idempotency, and CLI
+  tests; installed-wheel command-surface smoke test; staged secret/private-path scan.
+- **Risks:** partial writes, false atomicity, unsafe stale-lock recovery, backup corruption, marker
+  ambiguity, rollback overreach, validation output leakage, and tests that accidentally target a
+  real repository.
+- **Rollback:** transaction backup restores only paths named by the approved fixture plan; files
+  created by the transaction are removed and original modes/bytes are restored in reverse order;
+  implementation code is reverted through Git without touching transaction fixtures.
 - **Parallelization group:** A3, single mutation-path owner.
 - **Execution wave:** 2.
-- **Status:** planned.
+- **Status:** completed locally on the isolated RepoOS branch; no real repository is eligible.
 - **Local evidence:** Phase 1 promised atomicity without an algorithm; local dirty states require fail-closed behavior.
 
 ## ROS-007 — Repair RepoOS Codex surfaces
@@ -172,7 +210,8 @@ Every issue preserves unrelated work, keeps private evidence out of public artif
 - **Rollback:** remove defective tests only with a recorded test-defect explanation; product failures are not suppressed.
 - **Parallelization group:** A3 with nonoverlapping fixture ownership.
 - **Execution wave:** 2–3.
-- **Status:** partial—78 tests cover shipped behavior; executable apply/rollback cases depend on ROS-006.
+- **Status:** completed locally for shipped behavior—138 tests include executable fixture
+  apply/rollback, failure injection, schemas, locks, CLI, Codex, and no-write evidence.
 - **Local evidence:** current Make/test path performs shallow file-presence checks and has no `tests/` directory.
 
 ## ROS-010 — Establish the learning ledger and recurring read-only specs

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/transaction-observation.schema.json",
+  "title": "RepoOS public-safe transaction observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transaction_id",
+    "outcome",
+    "component_types",
+    "file_count",
+    "conflict_types",
+    "validation_result",
+    "rollback_result",
+    "duration_ms",
+    "safety_limit_overrides",
+    "failure_classification",
+    "recorded_at",
+    "publishability"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "transaction_id": {"type": "string", "pattern": "^tx-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$"},
+    "outcome": {
+      "enum": ["completed", "rolled_back", "failed", "rollback_failed"]
+    },
+    "component_types": {
+      "type": "array",
+      "items": {
+        "enum": ["managed_file", "managed_section", "generated_file"]
+      },
+      "uniqueItems": true
+    },
+    "file_count": {"type": "integer", "minimum": 0},
+    "conflict_types": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "validation_result": {
+      "enum": ["not_run", "passed", "failed", "timeout"]
+    },
+    "rollback_result": {
+      "enum": ["not_required", "succeeded", "failed"]
+    },
+    "duration_ms": {"type": "integer", "minimum": 0},
+    "safety_limit_overrides": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "failure_classification": {
+      "oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]
+    },
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "publishability": {"const": "public_safe"}
+  }
+}

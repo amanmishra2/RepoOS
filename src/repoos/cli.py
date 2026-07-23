@@ -11,11 +11,15 @@ from pathlib import Path
 from typing import Any
 
 from repoos import __version__
+from repoos.apply import (
+    execute_plan,
+    precondition_error,
+    rollback_transaction,
+)
 from repoos.discovery import discover, inventory_project
 from repoos.errors import (
     ExitCode,
     RepoOSError,
-    authorization_required,
     environment_error,
     invalid_input,
     unsafe_state,
@@ -25,8 +29,11 @@ from repoos.git import inspect_git, is_git_worktree
 from repoos.paths import require_directory, state_root
 from repoos.pause import get_pause_status
 from repoos.planning import (
+    DEFAULT_ALLOWED_PATH_PREFIXES,
+    DEFAULT_FORBIDDEN_PATH_PATTERNS,
     DEFAULT_MAX_BYTES,
     DEFAULT_MAX_FILES,
+    SafetyLimits,
     apply_dry_run,
     build_update_plan,
     read_plan,
@@ -34,6 +41,7 @@ from repoos.planning import (
 )
 from repoos.redaction import redact_text
 from repoos.reporting import render
+from repoos.transactions import TransactionStore
 from repoos.validation import (
     available_schemas,
     load_document,
@@ -54,8 +62,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="repoos",
         description=(
-            "Inspect, validate, and plan repository operating-layer changes. "
-            "Read-only commands are the default; no command pushes or commits."
+            "Inspect, validate, plan, and transactionally update marked fixture repositories. "
+            "Read-only and dry-run behavior remain the default; no command pushes or commits."
         ),
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
@@ -127,36 +135,126 @@ def build_parser() -> argparse.ArgumentParser:
         "plan-update",
         help="Create a deterministic no-write update plan for a marked fixture.",
     )
-    plan_parser.add_argument("--repository", required=True, help="Explicit target repository.")
+    plan_parser.add_argument(
+        "--repository",
+        "--repo",
+        dest="repository",
+        required=True,
+        help="Explicit target fixture repository.",
+    )
     plan_parser.add_argument("--source-root", required=True, help="Explicit component source root.")
     plan_parser.add_argument(
         "--file",
         action="append",
         default=[],
         metavar="SOURCE=TARGET",
-        help="Fixture-only source/target mapping; repeat for multiple files.",
+        help="Fully managed [COMPONENT|]SOURCE=TARGET mapping; repeat as needed.",
+    )
+    plan_parser.add_argument(
+        "--generated",
+        action="append",
+        default=[],
+        metavar="SOURCE=TARGET",
+        help="Generated [COMPONENT|]SOURCE=TARGET mapping; repeat as needed.",
+    )
+    plan_parser.add_argument(
+        "--section",
+        action="append",
+        default=[],
+        metavar="SOURCE=TARGET::START::END",
+        help="UTF-8 managed-section mapping with exact single-line markers.",
+    )
+    plan_parser.add_argument(
+        "--preserve",
+        action="append",
+        default=[],
+        metavar="TARGET=OWNERSHIP",
+        help="Record repository-owned, extension, local-override, or excluded ownership.",
     )
     plan_parser.add_argument("--target-version", default=__version__)
     plan_parser.add_argument("--max-files", type=int, default=DEFAULT_MAX_FILES)
     plan_parser.add_argument("--max-bytes", type=int, default=DEFAULT_MAX_BYTES)
+    plan_parser.add_argument("--max-created", type=int, default=5)
+    plan_parser.add_argument("--max-deleted", type=int, default=0)
+    plan_parser.add_argument("--max-lines-added", type=int, default=2000)
+    plan_parser.add_argument("--max-lines-removed", type=int, default=2000)
+    plan_parser.add_argument("--max-percent", type=float, default=50.0)
+    plan_parser.add_argument("--max-sections", type=int, default=5)
+    plan_parser.add_argument(
+        "--allowed-prefix",
+        action="append",
+        help="Replace the default allowed target prefixes; repeat as needed.",
+    )
+    plan_parser.add_argument(
+        "--forbidden-pattern",
+        action="append",
+        help="Replace the default forbidden path patterns; repeat as needed.",
+    )
     plan_parser.add_argument("--output", help="Atomically write the plan JSON to this path.")
     plan_parser.set_defaults(handler=_handle_plan_update)
 
     apply_parser = subparsers.add_parser(
         "apply",
-        help="Revalidate and preview an explicit plan; execution is not enabled in v0.1.0.",
+        help="Dry-run or explicitly execute one approved fixture update plan.",
     )
     apply_parser.add_argument("--plan", required=True, help="Explicit update-plan JSON.")
-    apply_parser.add_argument("--repository", required=True, help="Explicit target repository.")
     apply_parser.add_argument(
-        "--source-root", required=True, help="Explicit component source root."
+        "--repository",
+        "--repo",
+        dest="repository",
+        help="Exact target fixture; defaults to the path bound into the plan.",
+    )
+    apply_parser.add_argument(
+        "--source-root",
+        help="Exact component source root; defaults to the path bound into the plan.",
     )
     mode = apply_parser.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="Preview only (the default).")
-    mode.add_argument(
-        "--execute", action="store_true", help="Request execution (currently refused)."
+    mode.add_argument("--execute", action="store_true", help="Execute the fixture transaction.")
+    apply_parser.add_argument(
+        "--override-limit",
+        action="append",
+        default=[],
+        help="Explicitly override one exceeded named safety limit; repeat as needed.",
+    )
+    apply_parser.add_argument(
+        "--recover-stale-lock",
+        action="store_true",
+        help="Explicitly preserve and recover a stale or malformed lock before execution.",
+    )
+    apply_parser.add_argument(
+        "--validation-timeout",
+        type=int,
+        default=60,
+        help="Per-command validation timeout in seconds.",
     )
     apply_parser.set_defaults(handler=_handle_apply)
+
+    rollback_parser = subparsers.add_parser(
+        "rollback",
+        help="Restore only the files owned by one fixture transaction.",
+    )
+    rollback_parser.add_argument("--transaction", required=True, help="Exact transaction ID.")
+    rollback_parser.add_argument(
+        "--recover-stale-lock",
+        action="store_true",
+        help="Explicitly preserve and recover a stale or malformed repository lock.",
+    )
+    rollback_parser.set_defaults(handler=_handle_rollback)
+
+    transaction_parser = subparsers.add_parser(
+        "transaction",
+        help="Inspect local fixture transaction records.",
+    )
+    transaction_commands = transaction_parser.add_subparsers(
+        dest="transaction_command",
+        required=True,
+    )
+    transaction_show = transaction_commands.add_parser("show", help="Show one transaction.")
+    transaction_show.add_argument("transaction_id")
+    transaction_show.set_defaults(handler=_handle_transaction_show)
+    transaction_list = transaction_commands.add_parser("list", help="List transactions.")
+    transaction_list.set_defaults(handler=_handle_transaction_list)
 
     report_parser = subparsers.add_parser(
         "report",
@@ -338,13 +436,27 @@ def _handle_check_update(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _handle_plan_update(args: argparse.Namespace) -> dict[str, Any]:
+    limits = SafetyLimits(
+        max_files_changed=args.max_files,
+        max_files_created=args.max_created,
+        max_files_deleted=args.max_deleted,
+        max_total_bytes_changed=args.max_bytes,
+        max_lines_added=args.max_lines_added,
+        max_lines_removed=args.max_lines_removed,
+        max_percentage_repository_files_touched=args.max_percent,
+        allowed_path_prefixes=tuple(args.allowed_prefix or DEFAULT_ALLOWED_PATH_PREFIXES),
+        forbidden_path_patterns=tuple(args.forbidden_pattern or DEFAULT_FORBIDDEN_PATH_PATTERNS),
+        max_managed_sections_changed=args.max_sections,
+    )
     plan = build_update_plan(
         args.repository,
         args.source_root,
         args.file,
         target_version=args.target_version,
-        max_files=args.max_files,
-        max_bytes=args.max_bytes,
+        generated_mappings=args.generated,
+        section_mappings=args.section,
+        preserve_specs=args.preserve,
+        safety_limits=limits,
     )
     if args.output:
         output = Path(args.output).expanduser().resolve()
@@ -367,21 +479,57 @@ def _handle_plan_update(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _handle_apply(args: argparse.Namespace) -> dict[str, Any]:
+    plan = read_plan(args.plan, verify_digest=False)
+    repository = args.repository or plan["target_repository"]
+    source_root = args.source_root or plan["source_root"]
+    overrides = tuple(sorted(set(args.override_limit)))
     if args.execute:
-        raise authorization_required(
-            "Apply execution is intentionally disabled in RepoOS v0.1.0. "
-            "Only dry-run revalidation is implemented.",
+        if args.validation_timeout < 1:
+            raise invalid_input("Validation timeout must be positive.")
+        return execute_plan(
+            plan,
+            repository,
+            source_root,
+            state_directory=state_root(args.state_dir),
+            safety_overrides=overrides,
+            recover_stale_lock=args.recover_stale_lock,
+            validation_timeout=args.validation_timeout,
         )
-    plan = read_plan(args.plan)
     result = apply_dry_run(
         plan,
-        args.repository,
-        args.source_root,
+        repository,
+        source_root,
         state_directory=state_root(args.state_dir),
+        safety_overrides=overrides,
     )
     if not result["would_apply"]:
-        raise unsafe_state("Apply preview failed safety revalidation.", preview=result)
+        raise precondition_error("dry-run", result["failures"])
     return result
+
+
+def _handle_rollback(args: argparse.Namespace) -> dict[str, Any]:
+    return rollback_transaction(
+        args.transaction,
+        state_directory=state_root(args.state_dir),
+        recover_stale_lock=args.recover_stale_lock,
+    )
+
+
+def _handle_transaction_show(args: argparse.Namespace) -> dict[str, Any]:
+    record = TransactionStore(state_root(args.state_dir)).load(args.transaction_id)
+    return {
+        "schema_version": "repoos.transaction-show.v1",
+        "transaction": record,
+    }
+
+
+def _handle_transaction_list(args: argparse.Namespace) -> dict[str, Any]:
+    records = TransactionStore(state_root(args.state_dir)).list()
+    return {
+        "schema_version": "repoos.transaction-list.v1",
+        "count": len(records),
+        "transactions": records,
+    }
 
 
 def _handle_report(args: argparse.Namespace) -> dict[str, Any]:

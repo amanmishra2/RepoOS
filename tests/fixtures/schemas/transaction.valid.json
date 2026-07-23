@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "transaction_id": "tx-20260723T120000Z-aaaaaaaaaaaa",
+  "repoos_source_version": "0.2.0",
+  "target_repository_identifier": "neutral-fixture",
+  "target_repository_path": "/tmp/neutral-fixture",
+  "target_repository_path_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "target_head_planned": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "target_status_fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "manifest_version": 1,
+  "manifest_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "update_plan_version": "repoos.update-plan.v2",
+  "plan_id": "plan-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "plan_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "components": ["fixture-component"],
+  "affected_files": [
+    {
+      "target": "managed/value.txt",
+      "action": "replace",
+      "ownership": "managed_file",
+      "expected_pre_change_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "intended_post_change_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "applied_sha256": null,
+      "managed_section": null
+    }
+  ],
+  "backup_location": "/tmp/repoos-state/transactions/tx-20260723T120000Z-aaaaaaaaaaaa/backup",
+  "started_at": "2026-07-23T12:00:00Z",
+  "completed_at": null,
+  "state": "planned",
+  "state_history": [
+    {
+      "state": "planned",
+      "at": "2026-07-23T12:00:00Z"
+    }
+  ],
+  "validation_commands": [
+    {
+      "name": "tests",
+      "argv": ["python3", "-c", "raise SystemExit(0)"]
+    }
+  ],
+  "validation_results": [],
+  "rollback": {
+    "state": "not_required",
+    "started_at": null,
+    "completed_at": null,
+    "restored_files": 0,
+    "failure_classification": null
+  },
+  "failure": null,
+  "safety": {
+    "limits": {"max_files_changed": 20},
+    "measurements": {"files_changed": 1},
+    "overrides": [],
+    "violations": []
+  },
+  "duration_ms": null
+}

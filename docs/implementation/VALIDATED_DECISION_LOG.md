@@ -9,7 +9,7 @@ Date: 2026-07-23
 | D2-003 | Keep private portfolio mappings outside the public repository. | RepoOS is public; project identity and repository metadata may be confidential. | Accepted |
 | D2-004 | Use Python 3.11+ package semantics and stdlib-first CLI design. | RepoOS already contains Python tools; Python 3.13 is installed. | Accepted |
 | D2-005 | Start at version `0.1.0`; use YAML desired state and JSON generated state. | Small portfolio and reviewability favor file contracts over a database. | Accepted |
-| D2-006 | Defer managed sections. | No unavoidable inventory case; parser/ownership risk is material. | Deferred |
+| D2-006 | Defer managed sections in the initial foundation. | No unavoidable inventory case; parser/ownership risk is material. | Superseded by D2-021 for fixtures only |
 | D2-007 | Unknown ownership is repository-owned; similarity never transfers ownership. | Independent repositories have legitimate divergent safety and validation rules. | Accepted |
 | D2-008 | Discovery and inventory are bounded, metadata-first, and read-only. | Four dirty trees and complex linked worktree state make implicit writes unsafe. | Accepted |
 | D2-009 | Use GitHub-hosted runners for initial RepoOS CI. | RepoOS is public and no self-hosted runner is registered; current PR workflow targets a persistent Mac. | Accepted |
@@ -24,6 +24,9 @@ Date: 2026-07-23
 | D2-018 | No GitHub issues are created in this run. | RepoOS has no existing taxonomy; the brief requires explicit authorization for issue creation. | Accepted |
 | D2-019 | User-global installation, GitHub governance, and release publication are separate authorization domains. | Their blast radius and rollback differ from repository content changes. | Accepted |
 | D2-020 | Do not mechanically import the supplied ZIP. | RepoOS is richer; the ZIP contains obsolete config, agents, hooks, and whole-tree copy behavior. | Accepted |
+| D2-021 | Permit one uniquely marked UTF-8 managed section per file only in neutral fixtures. | The transactional fixture brief requires section proof; exact markers, separate inside/outside hashes, and byte-preservation tests bound the parser risk. | Accepted with fixture-only scope |
+| D2-022 | Keep file deletion and force rollback non-executable in `0.2.0`. | Creation/replacement/section restoration prove the transaction boundary without adding irreversible ambiguity. | Accepted |
+| D2-023 | Require exact RepoOS source version for executable plan v2. | No released compatibility/migration contract exists before 1.0; silent plan regeneration would invalidate approval. | Accepted |
 
 ## Supersession
 

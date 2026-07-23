@@ -38,6 +38,16 @@ def test_dry_run_does_not_create_state_or_target(repoos_fixture: Path, tmp_path:
     assert result["writes_performed"] == 0
     assert not state.exists()
     assert not (repoos_fixture / "managed").exists()
+    unsafe_state = repoos_fixture / ".repoos-state"
+    unsafe_result = apply_dry_run(
+        plan,
+        repoos_fixture,
+        source,
+        state_directory=unsafe_state,
+    )
+    assert unsafe_result["would_apply"] is False
+    assert "unsafe_state_directory_inside_target" in unsafe_result["failures"]
+    assert not unsafe_state.exists()
 
 
 def test_secret_pattern_does_not_survive_output_redaction() -> None:

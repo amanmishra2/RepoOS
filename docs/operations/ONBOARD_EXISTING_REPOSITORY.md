@@ -1,6 +1,6 @@
 # Onboard an existing repository
 
-Real onboarding is not enabled in `0.1.0`.
+Real onboarding is not enabled in `0.2.0`; executable behavior remains fixture-only.
 
 Required sequence:
 

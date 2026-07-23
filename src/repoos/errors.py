@@ -19,6 +19,13 @@ class ExitCode(IntEnum):
     PAUSED = 7
     ENVIRONMENT = 8
     AUTHORIZATION_REQUIRED = 9
+    DIRTY_REPOSITORY = 10
+    STALE_PLAN = 11
+    BACKUP_FAILURE = 12
+    APPLY_FAILURE = 13
+    VALIDATION_ROLLED_BACK = 14
+    ROLLBACK_FAILURE = 15
+    SAFETY_LIMIT = 16
     INTERNAL_ERROR = 70
 
 
@@ -54,6 +61,10 @@ def validation_error(message: str, **details: Any) -> RepoOSError:
     return RepoOSError(message, ExitCode.VALIDATION_FAILED, "validation_failed", details)
 
 
+def conflict(message: str, **details: Any) -> RepoOSError:
+    return RepoOSError(message, ExitCode.CONFLICT, "conflict", details)
+
+
 def unsafe_state(message: str, **details: Any) -> RepoOSError:
     return RepoOSError(message, ExitCode.UNSAFE_STATE, "unsafe_state", details)
 
@@ -69,3 +80,41 @@ def authorization_required(message: str, **details: Any) -> RepoOSError:
         "authorization_required",
         details,
     )
+
+
+def dirty_repository(message: str, **details: Any) -> RepoOSError:
+    return RepoOSError(
+        message,
+        ExitCode.DIRTY_REPOSITORY,
+        "dirty_repository",
+        details,
+    )
+
+
+def stale_plan(message: str, **details: Any) -> RepoOSError:
+    return RepoOSError(message, ExitCode.STALE_PLAN, "stale_plan", details)
+
+
+def backup_failure(message: str, **details: Any) -> RepoOSError:
+    return RepoOSError(message, ExitCode.BACKUP_FAILURE, "backup_failure", details)
+
+
+def apply_failure(message: str, **details: Any) -> RepoOSError:
+    return RepoOSError(message, ExitCode.APPLY_FAILURE, "apply_failure", details)
+
+
+def validation_rolled_back(message: str, **details: Any) -> RepoOSError:
+    return RepoOSError(
+        message,
+        ExitCode.VALIDATION_ROLLED_BACK,
+        "validation_failed_rolled_back",
+        details,
+    )
+
+
+def rollback_failure(message: str, **details: Any) -> RepoOSError:
+    return RepoOSError(message, ExitCode.ROLLBACK_FAILURE, "rollback_failure", details)
+
+
+def safety_limit(message: str, **details: Any) -> RepoOSError:
+    return RepoOSError(message, ExitCode.SAFETY_LIMIT, "safety_limit", details)

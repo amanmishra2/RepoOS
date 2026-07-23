@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/backup-manifest.schema.json",
+  "title": "RepoOS atomic fixture backup manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transaction_id",
+    "complete",
+    "created_at",
+    "target_head",
+    "target_status_fingerprint",
+    "plan_sha256",
+    "manifest_sha256",
+    "transaction_sha256",
+    "target_state_sha256",
+    "entries",
+    "restore_order",
+    "retention",
+    "integrity_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "transaction_id": {"type": "string", "pattern": "^tx-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$"},
+    "complete": {"const": true},
+    "created_at": {"type": "string", "format": "date-time"},
+    "target_head": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "target_status_fingerprint": {"$ref": "#/$defs/hash"},
+    "plan_sha256": {"$ref": "#/$defs/hash"},
+    "manifest_sha256": {"$ref": "#/$defs/hash"},
+    "transaction_sha256": {"$ref": "#/$defs/hash"},
+    "target_state_sha256": {"$ref": "#/$defs/hash"},
+    "entries": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/entry"}
+    },
+    "restore_order": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/portable_path"},
+      "uniqueItems": true
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy", "preserve_until"],
+      "properties": {
+        "policy": {"const": "manual"},
+        "preserve_until": {
+          "oneOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]
+        }
+      }
+    },
+    "integrity_sha256": {"$ref": "#/$defs/hash"}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "portable_path": {
+      "type": "string",
+      "minLength": 1,
+      "not": {"pattern": "(^/|(^|/)\\.\\.(/|$)|\\\\)"}
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "action",
+        "ownership",
+        "existed",
+        "backup_path",
+        "original_sha256",
+        "original_mode",
+        "expected_applied_sha256",
+        "expected_applied_mode",
+        "managed_section"
+      ],
+      "properties": {
+        "target": {"$ref": "#/$defs/portable_path"},
+        "action": {"enum": ["create", "replace", "section_update", "delete"]},
+        "ownership": {
+          "enum": ["managed_file", "managed_section", "generated_file"]
+        },
+        "existed": {"type": "boolean"},
+        "backup_path": {
+          "oneOf": [{"$ref": "#/$defs/portable_path"}, {"type": "null"}]
+        },
+        "original_sha256": {
+          "oneOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]
+        },
+        "original_mode": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0, "maximum": 4095},
+            {"type": "null"}
+          ]
+        },
+        "expected_applied_sha256": {
+          "oneOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]
+        },
+        "expected_applied_mode": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0, "maximum": 4095},
+            {"type": "null"}
+          ]
+        },
+        "managed_section": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start_marker",
+                "end_marker",
+                "before_section_sha256",
+                "before_outside_sha256"
+              ],
+              "properties": {
+                "start_marker": {"type": "string", "minLength": 1},
+                "end_marker": {"type": "string", "minLength": 1},
+                "before_section_sha256": {"$ref": "#/$defs/hash"},
+                "before_outside_sha256": {"$ref": "#/$defs/hash"}
+              }
+            },
+            {"type": "null"}
+          ]
+        }
+      }
+    }
+  }
+}

@@ -50,7 +50,52 @@ Redaction is part of the evidence pipeline, not a post-publication cleanup step.
 - JSONL may be used for append-only local ingestion later.
 - Caches, locks, and operation journals live outside managed repositories by default.
 - A repository declares desired adoption in `.repoos/project.yaml`.
-- A generated lock is deferred until release artifact integrity and rollback retention are implemented.
+- Update-plan schema v2 is immutable by canonical digest and binds the exact fixture path, common
+  Git identity, HEAD, status, source root/files, target files, manifest, components, ownership,
+  validation commands, and safety measurements.
+- Transaction, backup, and public-safe observation schemas version operation state independently
+  from the package. An adoption/release lock remains deferred until release artifact integrity and
+  long-term rollback retention are implemented.
+
+## Transaction boundary
+
+Executable mutation in `0.2.0` is restricted to temporary or otherwise disposable Git repositories
+containing a regular `.repoos-fixture` marker and a manifest that explicitly permits apply. A real
+repository cannot become eligible merely by adding the marker; real adoption remains a separately
+authorized ROS-011 workflow.
+
+The deterministic state path is:
+
+```text
+planned → validated → locked → backed_up → applying → applied
+        → validating → completed
+                      ↘ rolling_back → rolled_back
+                                      ↘ rollback_failed
+```
+
+Early failures terminate as `failed`. Invalid transitions are rejected. A schema-valid failed
+attempt is recorded before target writes; dry-run creates neither transaction state nor target
+state.
+
+The engine holds a per-common-Git filesystem lock for the write/validation/rollback interval.
+Process-visible metadata records PID, hostname, start time, target, transaction, and lock kind.
+Stale or malformed locks are never removed implicitly; an explicit recovery flag preserves the
+prior lock record before acquisition. A short-lived global lock serializes state-wide stale-lock
+recovery without preventing ordinary operations on different fixtures.
+
+Before the first target write, RepoOS creates and validates an atomically finalized backup beneath
+the configured state directory. It contains the approved plan and manifest snapshots, transaction
+metadata, target HEAD/status evidence, and only the original bytes/modes of paths in the plan.
+Every snapshot and stored original is digest checked; apply also rebuilds the operation and safety
+measurements from current source/target bytes rather than trusting recorded totals.
+Validation failure automatically restores in reverse order. Manual rollback is backup-integrity
+checked, lock protected, drift aware, and idempotent. `rollback_failed` is terminal to prevent an
+uncontrolled retry loop.
+
+Safety limits are part of the approved plan: files changed/created/deleted, bytes, lines, percentage
+of repository files, allowed prefixes, forbidden patterns, and managed-section count. An exceeded
+limit blocks before backup or target writes unless the exact named override is explicit and
+recorded in the transaction.
 
 ## Ownership model
 
@@ -63,17 +108,23 @@ Initial support:
 - explicit local overrides;
 - excluded files.
 
-Managed sections are deferred. No concrete inventory case justifies their corruption and parser risk. If introduced later, v1 support is limited to a specified text format with unique, nonnested markers and byte-preservation tests.
+Managed sections are supported only by the `0.2.0` fixture engine for UTF-8 text, one operation per
+file, and exact unique whole-line start/end markers. Missing, duplicate, reversed, nested, or
+overlapping boundaries fail closed. The plan separately binds the section and outside-byte hashes;
+the renderer preserves marker lines, outside bytes, file mode, and existing LF/CRLF convention.
+TOML, JSON, YAML, binary files, and real repositories are not eligible for section management.
 
 ## Minimum viable implementation
 
-The first foundation includes:
+The current local implementation includes:
 
 - explicit version and package metadata;
 - public-safe project registry plus schema;
 - manifest, observation, candidate, adoption, and update-plan schemas;
 - deterministic CLI help, discovery, inventory, status, doctor, validation, diff, audit, update checking, planning, dry-run apply, and reporting;
-- path containment, redaction, Git safety, pause, lock, plan, backup, and rollback primitives exercised only on fixtures;
+- path containment, redaction, Git safety, pause, plan v2, process-visible locks, transaction
+  records, atomic backups/writes, bounded validation, automatic restoration, and manual rollback
+  exercised only on neutral fixtures;
 - repaired RepoOS-local Codex surfaces;
 - GitHub-hosted read-only CI pinned to full SHAs;
 - neutral unit, integration, schema, security, and CLI fixtures;
@@ -90,6 +141,8 @@ The first foundation includes:
 - SQLite/service/API/dashboard/event bus/vector database;
 - broad portfolio rollout;
 - downstream canary writes until explicit confirmation.
+- file deletion, force rollback, multi-section files, structured-file section management, and
+  multi-repository transactions.
 
 ## Authority
 

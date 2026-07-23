@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from repoos.errors import environment_error, invalid_input
-from repoos.paths import canonical_path, require_directory
+from repoos.paths import canonical_path, require_directory, sha256_bytes
 
 _READ_ONLY_COMMANDS = {
     "rev-parse",
@@ -199,3 +199,47 @@ def inspect_git(repository: str | Path) -> GitState:
         default_branch=default_branch,
         worktree_records=worktree_records,
     )
+
+
+def status_fingerprint(repository: str | Path) -> str:
+    """Hash the exact branch-aware porcelain state used by plan preconditions."""
+
+    output = run_git(
+        repository,
+        ["status", "--porcelain=v2", "--branch", "--untracked-files=all"],
+    )
+    return sha256_bytes(output.encode("utf-8"))
+
+
+def status_paths(repository: str | Path) -> tuple[str, ...]:
+    """Return dirty paths without reading file contents.
+
+    Rename/copy records are conservatively represented by both NUL-delimited path
+    fields so rollback cannot mistake an unrelated rename for transaction output.
+    """
+
+    output = run_git(
+        repository,
+        ["status", "--porcelain=v1", "-z", "--untracked-files=all"],
+    )
+    fields = output.split("\0")
+    paths: list[str] = []
+    index = 0
+    while index < len(fields):
+        entry = fields[index]
+        index += 1
+        if not entry:
+            continue
+        if len(entry) < 4:
+            paths.append(entry)
+            continue
+        status_code = entry[:2]
+        path = entry[3:]
+        if path:
+            paths.append(path)
+        if ("R" in status_code or "C" in status_code) and index < len(fields):
+            related = fields[index]
+            index += 1
+            if related:
+                paths.append(related)
+    return tuple(sorted(set(paths)))

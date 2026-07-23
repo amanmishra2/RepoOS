@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "transaction_id": "tx-20260723T120000Z-aaaaaaaaaaaa",
+  "complete": true,
+  "created_at": "2026-07-23T12:00:00Z",
+  "target_head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "target_status_fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "plan_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "manifest_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "transaction_sha256": "abababababababababababababababababababababababababababababababab",
+  "target_state_sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+  "entries": [
+    {
+      "target": "managed/value.txt",
+      "action": "replace",
+      "ownership": "managed_file",
+      "existed": true,
+      "backup_path": "files/0000.bin",
+      "original_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "original_mode": 420,
+      "expected_applied_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "expected_applied_mode": 420,
+      "managed_section": null
+    }
+  ],
+  "restore_order": ["managed/value.txt"],
+  "retention": {
+    "policy": "manual",
+    "preserve_until": null
+  },
+  "integrity_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+}

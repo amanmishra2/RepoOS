@@ -17,16 +17,31 @@ Unknown and unadopted paths are `repository_owned`.
 
 ## Managed sections
 
-Managed sections are deferred in the initial release. They may be introduced only for a concrete, text-only use case with:
+`0.2.0` supports managed sections only in marked neutral fixtures and only with:
 
-- a specified comment grammar;
-- unique nonnested markers;
+- UTF-8 text;
+- exact non-empty start and end markers that each occupy a complete line;
+- exactly one section operation per file;
+- unique, ordered, nonnested markers;
 - byte-for-byte preservation outside the section;
-- malformed/missing/duplicate marker refusal;
-- encoding and line-ending fixtures;
-- explicit migration and ownership transfer.
+- separate approved hashes for the section and outside bytes;
+- missing, duplicate, reversed, nested, overlapping, or locally changed boundary refusal;
+- preservation of the existing file mode and LF/CRLF convention.
 
-TOML, JSON, and workflow YAML are not section-managed.
+The source file supplies only the replacement section body. Marker lines stay in the target.
+TOML, JSON, YAML (including workflows), binary files, multiple sections in one file, and real
+repositories are not section-managed.
+
+## Executable ownership behavior
+
+- `managed_file` and `generated_file` render from one exact source path. Existing file mode is
+  preserved; a new file receives the approved source mode.
+- `managed_section` rewrites only the approved interior bytes.
+- `repository_owned`, `repository_extension`, `local_override`, and `excluded` may appear as
+  `preserve` entries for review but never enter backup or write sets.
+- `delete` is reserved by the schema for future compatibility and is rejected by the `0.2.0`
+  executable engine.
+- Unknown ownership, duplicate target ownership, or multiple operations for one target fail closed.
 
 ## Path safety
 
@@ -54,7 +69,11 @@ Leaving RepoOS reverses ownership through a forward proposal; files do not disap
 
 ## Conflict behavior
 
-Stop on missing baseline, local deletion without recreation policy, local edit conflict, binary content, unsupported encoding, malformed metadata, generated-file edit, or stale plan. Emit a conflict bundle; do not pick “ours” or “theirs” automatically.
+Stop on missing baseline, local deletion without recreation policy, local edit conflict,
+unsupported section encoding, malformed metadata, generated-file edit, ownership overlap, or
+stale plan. Full-file binary content is copied only when it does not require newline conversion;
+binary managed sections are unsupported. Emit a conflict bundle; do not pick “ours” or “theirs”
+automatically.
 
 ## Authority
 

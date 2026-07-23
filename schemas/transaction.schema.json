@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/transaction.schema.json",
+  "title": "RepoOS fixture transaction record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "transaction_id",
+    "repoos_source_version",
+    "target_repository_identifier",
+    "target_repository_path",
+    "target_repository_path_sha256",
+    "target_head_planned",
+    "target_status_fingerprint",
+    "manifest_version",
+    "manifest_sha256",
+    "update_plan_version",
+    "plan_id",
+    "plan_sha256",
+    "components",
+    "affected_files",
+    "backup_location",
+    "started_at",
+    "completed_at",
+    "state",
+    "state_history",
+    "validation_commands",
+    "validation_results",
+    "rollback",
+    "failure",
+    "safety",
+    "duration_ms"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "transaction_id": {"type": "string", "pattern": "^tx-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$"},
+    "repoos_source_version": {"$ref": "#/$defs/version"},
+    "target_repository_identifier": {"$ref": "#/$defs/id"},
+    "target_repository_path": {"type": "string", "minLength": 1},
+    "target_repository_path_sha256": {"$ref": "#/$defs/hash"},
+    "target_head_planned": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "target_status_fingerprint": {"$ref": "#/$defs/hash"},
+    "manifest_version": {"type": "integer", "minimum": 1},
+    "manifest_sha256": {"$ref": "#/$defs/hash"},
+    "update_plan_version": {"const": "repoos.update-plan.v2"},
+    "plan_id": {"type": "string", "pattern": "^plan-[a-f0-9]{64}$"},
+    "plan_sha256": {"$ref": "#/$defs/hash"},
+    "components": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "affected_files": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/affected_file"}
+    },
+    "backup_location": {"type": "string", "minLength": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {
+      "oneOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]
+    },
+    "state": {"$ref": "#/$defs/state"},
+    "state_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["state", "at"],
+        "properties": {
+          "state": {"$ref": "#/$defs/state"},
+          "at": {"type": "string", "format": "date-time"}
+        }
+      },
+      "minItems": 1
+    },
+    "validation_commands": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/command"},
+      "minItems": 1
+    },
+    "validation_results": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/validation_result"}
+    },
+    "rollback": {"$ref": "#/$defs/rollback"},
+    "failure": {
+      "oneOf": [{"$ref": "#/$defs/failure"}, {"type": "null"}]
+    },
+    "safety": {"$ref": "#/$defs/safety"},
+    "duration_ms": {
+      "oneOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]
+    }
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "nullable_hash": {
+      "oneOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "state": {
+      "enum": [
+        "planned",
+        "validated",
+        "locked",
+        "backed_up",
+        "applying",
+        "applied",
+        "validating",
+        "completed",
+        "rolling_back",
+        "rolled_back",
+        "failed",
+        "rollback_failed"
+      ]
+    },
+    "ownership": {
+      "enum": [
+        "managed_file",
+        "managed_section",
+        "generated_file",
+        "repository_owned",
+        "repository_extension",
+        "local_override",
+        "excluded"
+      ]
+    },
+    "affected_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "action",
+        "ownership",
+        "expected_pre_change_sha256",
+        "intended_post_change_sha256",
+        "applied_sha256",
+        "managed_section"
+      ],
+      "properties": {
+        "target": {"type": "string", "minLength": 1},
+        "action": {"enum": ["create", "replace", "section_update", "preserve", "delete"]},
+        "ownership": {"$ref": "#/$defs/ownership"},
+        "expected_pre_change_sha256": {"$ref": "#/$defs/nullable_hash"},
+        "intended_post_change_sha256": {"$ref": "#/$defs/nullable_hash"},
+        "applied_sha256": {"$ref": "#/$defs/nullable_hash"},
+        "managed_section": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["start_marker", "end_marker"],
+              "properties": {
+                "start_marker": {"type": "string", "minLength": 1},
+                "end_marker": {"type": "string", "minLength": 1}
+              }
+            },
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argv"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "argv": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1
+        }
+      }
+    },
+    "validation_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "argv",
+        "exit_code",
+        "stdout_excerpt",
+        "stderr_excerpt",
+        "output_truncated",
+        "duration_ms",
+        "status"
+      ],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "argv": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1
+        },
+        "exit_code": {"type": "integer"},
+        "stdout_excerpt": {"type": "string", "maxLength": 16384},
+        "stderr_excerpt": {"type": "string", "maxLength": 16384},
+        "output_truncated": {"type": "boolean"},
+        "duration_ms": {"type": "integer", "minimum": 0},
+        "status": {"enum": ["passed", "failed", "timeout", "not_started"]}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "started_at",
+        "completed_at",
+        "restored_files",
+        "failure_classification"
+      ],
+      "properties": {
+        "state": {
+          "enum": ["not_required", "pending", "in_progress", "succeeded", "failed"]
+        },
+        "started_at": {
+          "oneOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]
+        },
+        "completed_at": {
+          "oneOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]
+        },
+        "restored_files": {"type": "integer", "minimum": 0},
+        "failure_classification": {
+          "oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]
+        }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification", "message", "failed_precondition"],
+      "properties": {
+        "classification": {"type": "string", "minLength": 1},
+        "message": {"type": "string", "minLength": 1},
+        "failed_precondition": {
+          "oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limits", "measurements", "overrides", "violations"],
+      "properties": {
+        "limits": {"type": "object"},
+        "measurements": {"type": "object"},
+        "overrides": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        },
+        "violations": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

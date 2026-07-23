@@ -29,6 +29,9 @@ validate:
 
 cli-smoke:
 	$(REPOOS) --help
+	$(REPOOS) apply --help
+	$(REPOOS) rollback --help
+	$(REPOOS) transaction --help
 	$(REPOOS) --format json doctor
 	$(REPOOS) --format json check-update --project .
 

@@ -6,18 +6,25 @@ It is not a static template copier, monorepo parent, runtime dependency, autonom
 
 ## Current status
 
-Version `0.1.0` is an initial foundation:
+Version `0.2.0` adds a fixture-only transactional engine to the initial control-plane foundation:
 
 - bounded, first-level discovery and metadata inventory;
 - public-safe output redaction;
 - Git dirty-state and common-worktree inspection;
-- strict schemas for registry, manifest, learning, adoption, and update plans;
+- strict schemas for registry, manifest, learning, adoption, update plans, transactions, backups,
+  and public-safe transaction outcomes;
 - deterministic validation, diff, audit, status, doctor, update-check, planning, and reporting commands;
-- pause and per-repository lock primitives;
-- fixture-only explicit file planning;
-- dry-run apply revalidation.
+- pause, global-recovery, and per-common-Git process-visible locks;
+- immutable fixture planning for managed/generated files, managed text sections, and preserved
+  repository ownership;
+- dry-run precondition proof with no target or state writes;
+- approved-path backups, atomic apply, bounded validation, automatic rollback, drift-aware manual
+  rollback, and transaction inspection.
 
-Apply execution is intentionally disabled in `0.1.0`. RepoOS does not commit, push, open PRs, merge, change GitHub settings, register runners, or install user-global Codex files.
+Execution remains restricted to disposable Git repositories explicitly marked `.repoos-fixture`
+whose manifests permit apply. Real repositories and user-global files are not eligible. RepoOS does
+not commit, push, open PRs, merge, change GitHub settings, register runners, or install user-global
+Codex files.
 
 ## Quick start
 
@@ -44,13 +51,35 @@ repoos --format json discover
 repoos --privacy local --format json inventory --project /explicit/project
 ```
 
+Fixture update flow:
+
+```bash
+repoos --format json plan-update \
+  --repo /fixture/repository \
+  --source-root /fixture/components \
+  --file source.txt=managed/target.txt \
+  --output /tmp/plan.json
+repoos --state-dir /tmp/repoos-state --format json \
+  apply --plan /tmp/plan.json --dry-run
+repoos --state-dir /tmp/repoos-state --format json \
+  apply --plan /tmp/plan.json --execute
+repoos --state-dir /tmp/repoos-state transaction list
+repoos --state-dir /tmp/repoos-state \
+  rollback --transaction <transaction-id>
+```
+
+See [Update a fixture repository](docs/operations/UPDATE_REPOSITORY.md) and
+[Transaction rollback](docs/operations/ROLLBACK.md).
+
 ## Safety contract
 
 - Unknown ownership is repository-owned.
 - Similarity never transfers ownership.
 - Discovery and analysis are read-only.
 - A plan is not authorization.
-- Mutation requires an explicit target, clean common-Git state, current base, ownership, pause check, lock, limits, backup, journal, validation, and rollback.
+- Fixture mutation requires an explicit approved plan, clean common-Git state, current HEAD/status,
+  source/target/manifest hashes, ownership, pause checks, lock, limits, validated backup,
+  transaction record, bounded validation, and rollback.
 - No portfolio-wide write command exists.
 - Private mappings, raw Git evidence, secrets, databases, logs, and project content do not belong in this public repository.
 - AI may propose or summarize; deterministic code and humans enforce and approve.
@@ -68,7 +97,10 @@ The authoritative policy is [Command safety](policies/security/COMMAND_SAFETY.md
 
 ## Portfolio state
 
-The Phase 2 baseline found 14 first-level directories, including four dirty Git working trees, two conditional clean working trees, and seven non-Git roots. RepoOS was the only low-ambiguity implementation target. A downstream canary is only provisionally nominated and remains blocked pending explicit confirmation.
+The Phase 2 baseline found 14 first-level directories, including four dirty Git working trees, two
+conditional clean working trees, and seven non-Git roots. RepoOS was the only low-ambiguity
+implementation target. A downstream canary is only provisionally nominated and remains blocked;
+fixture success does not change that eligibility decision.
 
 Committed reports use aliases because RepoOS is public. See [portfolio baseline](reports/baseline/portfolio-inventory.md).
 

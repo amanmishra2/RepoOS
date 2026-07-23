@@ -2,6 +2,29 @@
 
 All notable RepoOS changes are recorded here. RepoOS follows Semantic Versioning.
 
+## 0.2.0 — Unreleased
+
+### Added
+
+- Immutable fixture update plans with ownership, source/target, Git-state, manifest, and
+  safety-limit preconditions.
+- Persistent transaction lifecycle, per-common-Git locks, explicit stale-lock recovery,
+  atomic approved-path backups, atomic file replacement, bounded validation, automatic
+  rollback, and drift-aware manual rollback.
+- Fixture-only managed-section updates with unique marker validation and byte-preserving
+  repository-owned content outside the section.
+- Transaction, backup-manifest, and public-safe transaction-observation schemas and CLI
+  inspection commands.
+
+### Compatibility and migration
+
+- Update-plan schema v1 remains historical and is not executable; approved plans must be
+  regenerated and reviewed under immutable update-plan schema v2.
+- Exact RepoOS source-version compatibility is required while the executable engine remains
+  pre-1.0 and fixture-only.
+- Real repositories, deletion, force rollback, structured-file managed sections, commit, push,
+  PR creation, and global installation remain unsupported.
+
 ## 0.1.0 — Unreleased
 
 ### Added
