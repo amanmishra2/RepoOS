@@ -1,63 +1,86 @@
 # RepoOS
 
-RepoOS is a reusable Continuous AgentOps template for making repositories more agent-legible, testable, and self-improving.
+RepoOS is a deterministic control plane for safely inspecting, validating, and planning operating-layer changes across independently owned repositories.
 
-Operating principle:
+It is not a static template copier, monorepo parent, runtime dependency, autonomous mutation service, or organization-governance controller.
 
-> Every repeated agent mistake becomes either a test, a hook, a skill, a doc update, a subagent role, a schema constraint, or a repo-structure change.
+## Current status
 
-## What this template provides
+Version `0.1.0` is an initial foundation:
 
-- Short, map-like `AGENTS.md` for agent onboarding.
-- Durable `MEMORY.md` for stable repo facts and repeated failure patterns.
-- AgentOps documentation for docs, folder structure, hooks, MCPs, tools, function calls, evals, and harness engineering.
-- Codex configuration, rules, subagents, hooks, and reusable skills.
-- Lightweight audit scripts and Makefile targets.
-- GitHub Actions, issue templates, and PR checklist gates.
-- A bounded Ralph Wiggum loop protocol for safe iterative improvement.
+- bounded, first-level discovery and metadata inventory;
+- public-safe output redaction;
+- Git dirty-state and common-worktree inspection;
+- strict schemas for registry, manifest, learning, adoption, and update plans;
+- deterministic validation, diff, audit, status, doctor, update-check, planning, and reporting commands;
+- pause and per-repository lock primitives;
+- fixture-only explicit file planning;
+- dry-run apply revalidation.
 
-## Runner requirement
+Apply execution is intentionally disabled in `0.1.0`. RepoOS does not commit, push, open PRs, merge, change GitHub settings, register runners, or install user-global Codex files.
 
-RepoOS GitHub Actions are configured for a repository-level MacBook self-hosted runner with these labels:
+## Quick start
 
-```yaml
-runs-on: [self-hosted, macOS, ARM64]
-```
-
-See `docs/agentops/github-actions-runners.md` before copying this template into a target repository. If a target repo should use GitHub-hosted runners instead, update `.github/workflows/agentops.yml` accordingly.
-
-## Install into another repo
-
-Copy the template files into the target repository, then run:
+Use the source tree without installing:
 
 ```bash
-make agentops-pr
-make hooks-smoke
-make mcp-smoke
+PYTHONPATH=src python3 -m repoos --help
+PYTHONPATH=src python3 -m repoos --format json doctor
+PYTHONPATH=src python3 -m repoos --format json validate --all
+python3 -m pytest
 ```
 
-Then customize only the project-specific documents:
+Install for development when dependencies are available:
 
-- `README.md`
-- `docs/ROADMAP.md`
-- `docs/verification.md`
-- `docs/issue-map.md`
-- `docs/specs/`
-- `docs/agentops/github-actions-runners.md` if the target repo uses different runner labels
+```bash
+python3 -m pip install -e ".[dev]"
+repoos --help
+```
 
-Keep `.codex/`, `.agents/skills/`, and `docs/agentops/` generic unless the target repo needs a repo-specific override.
+Discovery defaults to `~/Coding`, scans direct child directories only, aliases private identities by default, and never updates the registry implicitly:
 
-## Core rules
+```bash
+repoos --format json discover
+repoos --privacy local --format json inventory --project /explicit/project
+```
 
-1. `AGENTS.md` is a map, not a manual.
-2. `MEMORY.md` stores durable repo facts, not notes.
-3. Every repeated mistake becomes a guardrail.
-4. Every guardrail must be testable.
-5. Every tool must have a contract.
-6. Every MCP must have a registry entry and smoke test.
-7. Every hook must be deterministic and low-noise.
-8. Every large workflow must have a plan.
-9. Every completed plan must be archived.
-10. Every stale doc must be updated, moved, or deleted.
-11. Every agent loop must be bounded.
-12. Every claim of completion must include verification.
+## Safety contract
+
+- Unknown ownership is repository-owned.
+- Similarity never transfers ownership.
+- Discovery and analysis are read-only.
+- A plan is not authorization.
+- Mutation requires an explicit target, clean common-Git state, current base, ownership, pause check, lock, limits, backup, journal, validation, and rollback.
+- No portfolio-wide write command exists.
+- Private mappings, raw Git evidence, secrets, databases, logs, and project content do not belong in this public repository.
+- AI may propose or summarize; deterministic code and humans enforce and approve.
+
+The authoritative policy is [Command safety](policies/security/COMMAND_SAFETY.md).
+
+## Architecture and operations
+
+- [Validated architecture](docs/implementation/VALIDATED_ARCHITECTURE.md)
+- [Validated migration plan](docs/implementation/VALIDATED_MIGRATION_PLAN.md)
+- [File ownership](docs/implementation/FILE_OWNERSHIP_MODEL.md)
+- [Automation boundaries](docs/implementation/AUTOMATION_BOUNDARIES.md)
+- [CLI reference](docs/reference/CLI.md)
+- [Verification](docs/verification.md)
+
+## Portfolio state
+
+The Phase 2 baseline found 14 first-level directories, including four dirty Git working trees, two conditional clean working trees, and seven non-Git roots. RepoOS was the only low-ambiguity implementation target. A downstream canary is only provisionally nominated and remains blocked pending explicit confirmation.
+
+Committed reports use aliases because RepoOS is public. See [portfolio baseline](reports/baseline/portfolio-inventory.md).
+
+## GitHub Actions
+
+RepoOS CI uses GitHub-hosted ephemeral runners, read-only token permissions, concurrency cancellation, timeouts, and full-SHA-pinned third-party actions. Self-hosted runners and organization settings are separate authorization-dependent decisions.
+
+## Core principles
+
+1. Repository autonomy is the default.
+2. Every behavioral claim needs a semantic test.
+3. Every mutation needs preview, ownership, limits, backup, and rollback.
+4. Every repeated failure should become a proportionate guardrail.
+5. Every external write needs exact authority.
+6. Every completion claim includes evidence and remaining limitations.

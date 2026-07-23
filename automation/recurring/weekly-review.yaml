@@ -1,0 +1,14 @@
+schema_version: 1
+name: weekly-cross-project-review
+enabled: manual
+home: codex-task-or-manual
+read_only: true
+inputs:
+  - public-safe-inventory
+  - redacted-observations
+  - validation-results
+outputs:
+  - candidate-record-draft
+deduplication: observation-deduplication-key
+human_approval_required: true
+external_writes: false

@@ -1,0 +1,22 @@
+schema_version: 1
+privacy: public_safe
+private_overlay: .repoos/local/projects.private.yaml
+projects:
+  - project_id: repoos
+    path: .
+    repository: amanm02/RepoOS
+    project_family: null
+    additional_overlays: []
+    managed_components: []
+    excluded_components:
+      - private-local-state
+      - downstream-portfolio-mapping
+    risk_level: medium
+    automation_policy:
+      read_only: allowed
+      plan: allowed
+      apply: fixture_only
+      external_writes: denied
+    adoption_state: foundation
+    blocked_state: null
+    last_audit: "2026-07-23"

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/candidate-pattern.schema.json",
+  "title": "RepoOS candidate pattern",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "title",
+    "status",
+    "source_observations",
+    "consumer_count",
+    "eligibility",
+    "owner",
+    "risk",
+    "rollback",
+    "human_decision"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "candidate_id": {"type": "string", "pattern": "^PAT-[0-9]{4}$"},
+    "title": {"type": "string", "minLength": 1, "maxLength": 200},
+    "status": {"enum": ["proposed", "evaluating", "accepted", "rejected", "deprecated"]},
+    "source_observations": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^OBS-[0-9]{8}-[a-f0-9]{8}$"},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "consumer_count": {"type": "integer", "minimum": 0},
+    "eligibility": {"type": "string", "minLength": 1},
+    "owner": {"type": "string", "minLength": 1},
+    "risk": {"enum": ["low", "medium", "high", "critical"]},
+    "rollback": {"type": "string", "minLength": 1},
+    "human_decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approved", "decided_by", "evidence_ref"],
+      "properties": {
+        "approved": {"type": "boolean"},
+        "decided_by": {"type": ["string", "null"]},
+        "evidence_ref": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

@@ -1,38 +1,4 @@
-# RepoOS Codex configuration template
-
-model = "gpt-5.5-thinking"
-approval_policy = "on-request"
-sandbox_mode = "workspace-write"
-
-[project]
-name = "RepoOS"
-description = "Generic Continuous AgentOps template for agent-legible repositories."
-
-[context]
-read_first = [
-  "AGENTS.md",
-  "MEMORY.md",
-  "docs/agentops/README.md",
-  "docs/verification.md"
-]
-avoid_by_default = [
-  ".env",
-  ".env.*",
-  "secrets/**",
-  "credentials/**",
-  "node_modules/**",
-  "dist/**",
-  "build/**",
-  ".venv/**"
-]
-
-[workflow]
-require_plan_for_large_changes = true
-require_verification_summary = true
-require_pr_after_implementation = true
-prefer_small_diffs = true
-
-[agentops]
-improvement_backlog = "docs/agentops/improvement-backlog.md"
-harness_scorecard = "docs/agentops/harness-scorecard.md"
-legibility_scorecard = "docs/agentops/agent-legibility-scorecard.md"
+# RepoOS v0.1.0 intentionally sets no project-specific Codex configuration.
+# Repository policy belongs in AGENTS.md and RepoOS-owned schemas. User-global
+# preferences remain outside this public repository and require separate
+# authorization before RepoOS may render or install them.

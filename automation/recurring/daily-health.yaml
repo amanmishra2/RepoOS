@@ -1,0 +1,11 @@
+schema_version: 1
+name: daily-or-on-demand-health
+enabled: manual
+home: manual-or-github-actions
+read_only: true
+commands:
+  - [repoos, --format, json, doctor]
+  - [repoos, --format, json, validate, --all]
+pause_behavior: report-and-stop-before-follow-up
+output: local-or-ci-log
+external_writes: false

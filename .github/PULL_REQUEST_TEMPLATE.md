@@ -1,28 +1,54 @@
-## Summary
+## Objective and linked authority
 
-- 
+- ROS/GitHub issue:
+- Controlling decision:
+- Intended outcome:
 
-## Files changed
+## Scope
 
-- 
+- In scope:
+- Out of scope:
+- Files/ownership:
 
-## AgentOps checklist
+## Implementation summary
 
-- [ ] I updated docs if behavior, structure, commands, tools, hooks, MCPs, or workflows changed.
-- [ ] I updated `MEMORY.md` only for durable repo facts.
-- [ ] I updated the relevant registry if tools, functions, MCPs, hooks, or skills changed.
-- [ ] I ran the required verification command.
-- [ ] I added or updated tests/evals for repeated defects.
-- [ ] I checked for stale or duplicate docs.
-- [ ] I kept the diff small and reviewable.
+-
 
-## Validation
+## Acceptance criteria
 
-- [ ] `make agentops-pr`
-- [ ] `make hooks-smoke`
-- [ ] `make mcp-smoke`
-- [ ] `make test`
+- [ ]
 
-## Risks / follow-ups
+## Validation evidence
 
-- 
+- [ ] `make verify`
+- [ ] Relevant negative safety fixtures
+- [ ] Repository-specific commands, if applicable
+
+Commands/results:
+
+```text
+<command>: pass / fail / not run — reason
+```
+
+## Safety and confidentiality
+
+- [ ] Unrelated and dirty-tree work was preserved.
+- [ ] No private portfolio mapping, secret, database, log, or raw trace entered public artifacts.
+- [ ] No user-global, downstream, GitHub setting, runner, release, push, PR, or merge action occurred without exact authorization.
+- [ ] Mutation paths are explicit, bounded, dry-run/previewed, locked, backed up, and reversible—or are clearly marked unimplemented.
+
+## Risk and rollback
+
+- Risks:
+- Stop conditions:
+- Rollback:
+
+## Documentation and durable context
+
+- [ ] Authoritative docs match shipped behavior and limitations.
+- [ ] `MEMORY.md` changed only for durable facts.
+- [ ] Registries/maps changed when their controlled surface changed.
+
+## Remaining work
+
+-

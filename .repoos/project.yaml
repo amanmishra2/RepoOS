@@ -1,0 +1,33 @@
+manifest_version: 1
+project_id: repoos
+repoos_version: 0.1.0
+project_family: null
+additional_overlays: []
+components:
+  managed: []
+  generated: []
+  repository_owned:
+    - repoos-source
+    - repoos-documentation
+    - repoos-github
+  extensions: []
+  excluded:
+    - private-local-state
+    - downstream-portfolio-mapping
+adoption_channel: experimental
+local_overrides: []
+verification:
+  - name: tests
+    argv: [python3, -m, pytest]
+  - name: lint
+    argv: [python3, -m, ruff, check, .]
+  - name: typecheck
+    argv: [python3, -m, mypy, src/repoos]
+automation_permissions:
+  read_only: true
+  plan: true
+  apply: false
+  commit: false
+  push: false
+  external_settings: false
+last_successful_audit: null

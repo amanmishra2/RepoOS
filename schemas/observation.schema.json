@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/observation.schema.json",
+  "title": "RepoOS learning observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "observation_id",
+    "kind",
+    "summary",
+    "project_aliases",
+    "evidence_refs",
+    "sensitivity",
+    "publishability",
+    "deduplication_key",
+    "recorded_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "observation_id": {"type": "string", "pattern": "^OBS-[0-9]{8}-[a-f0-9]{8}$"},
+    "kind": {"enum": ["defect", "drift", "exception", "success", "candidate_pattern"]},
+    "summary": {"type": "string", "minLength": 1, "maxLength": 1000},
+    "project_aliases": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^[A-Za-z0-9-]+$"},
+      "uniqueItems": true
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "sensitivity": {"enum": ["public", "internal", "confidential", "restricted"]},
+    "publishability": {"enum": ["public_safe", "local_only", "requires_review"]},
+    "deduplication_key": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "recorded_at": {"type": "string", "format": "date-time"}
+  }
+}

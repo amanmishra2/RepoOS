@@ -1,47 +1,39 @@
 # AgentOps
 
-AgentOps is the continuous improvement layer for repository agents.
+AgentOps turns repeated, evidenced failures into proportionate, testable improvements.
 
-## Goal
-
-Make the repository more agent-legible, verifiable, safe, and self-improving over time.
-
-## Operating loop
+## Loop
 
 ```text
-Run work
-→ collect trace, terminal log, PR diff, or test result
-→ score behavior
-→ identify failure pattern
-→ choose fix surface
-→ open small PR
-→ verify
-→ update docs, memory, skills, hooks, or schemas
-→ add regression case
-→ repeat
+redacted evidence
+→ deterministic observation record
+→ candidate pattern
+→ neutral fixture
+→ human decision
+→ bounded adoption
+→ regression and rollback review
 ```
 
-## Fix surface decision table
+AI may summarize or cluster approved evidence but cannot approve, enforce, mutate, or promote.
 
-| Failure pattern | Fix type |
+## Choose the smallest valid fix
+
+| Failure | Preferred fix |
 |---|---|
-| Agent forgets repo conventions | Update `AGENTS.md` or a scoped `AGENTS.md` |
-| Agent follows stale instructions | Update `MEMORY.md`, stale-doc log, or delete old docs |
-| Agent calls wrong tool | Update tool registry, MCP instructions, or tool schema |
-| Agent skips verification | Add hook, PR checklist, or CI gate |
-| Agent creates bloated docs | Add doc linter and max-size thresholds |
-| Agent edits wrong files | Add rule, hook, or forbidden-path check |
-| Agent repeats a bug | Add regression test and eval case |
-| Agent overuses context | Split docs and add context-budget checks |
+| Behavioral defect | Product test and code fix |
+| Stale instruction | Repair/delete the lower-authority document |
+| Invalid contract | Schema plus valid/invalid fixtures |
+| Unsafe mutation path | Deterministic core guard and negative test |
+| Repeated tool misuse | Tool contract or focused skill |
+| Hook/rule gap | Core guard first; hook/rule only as tested defense in depth |
+| Repository-specific exception | Keep local; do not promote by similarity |
 
-## Key files
+## Current authority
 
-- `agent-legibility-scorecard.md`
-- `harness-scorecard.md`
-- `folder-structure-map.md`
-- `hook-registry.md`
-- `mcp-registry.md`
-- `tool-registry.md`
-- `function-call-registry.md`
-- `ralph-loop-protocol.md`
-- `improvement-backlog.md`
+- Architecture and automation: `docs/implementation/`
+- Machine contracts: `schemas/`
+- Safety: `policies/security/COMMAND_SAFETY.md`
+- Learning: `docs/architecture/LEARNING_LOOP.md`
+- Verification: `docs/verification.md`
+
+Legacy registries remain informational until entries are backed by executable tests.

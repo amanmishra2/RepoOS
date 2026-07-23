@@ -1,0 +1,13 @@
+schema_version: 1
+name: biweekly-update-proposal
+enabled: false
+home: manual-cli
+read_only: true
+preconditions:
+  - explicit-target
+  - confirmed-identity-and-commands
+  - clean-common-git-state
+  - ownership-known
+output: update-plan-only
+apply: false
+external_writes: false

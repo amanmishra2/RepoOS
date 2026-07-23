@@ -1,8 +1,0 @@
-# Default RepoOS rules
-
-- Read `AGENTS.md` first.
-- Treat `MEMORY.md` as durable repo memory, not a scratchpad.
-- Prefer small, reviewable diffs.
-- Run documented verification before claiming completion.
-- Update docs when behavior, structure, commands, tools, hooks, MCPs, or workflows change.
-- Commit, push, and open a PR after implementation unless explicitly told otherwise.

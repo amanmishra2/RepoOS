@@ -1,52 +1,35 @@
 # Verification
 
-Use these commands before reporting completion.
+Authoritative full local verification:
 
 ```bash
-make agentops-pr
-make hooks-smoke
-make mcp-smoke
-make test
+make verify
 ```
 
-## GitHub Actions runner
+Equivalent commands:
 
-RepoOS GitHub Actions are configured to run on a repository-level MacBook self-hosted runner:
-
-```yaml
-runs-on: [self-hosted, macOS, ARM64]
+```bash
+python3 -m ruff format --check .
+python3 -m ruff check .
+python3 -m mypy src/repoos
+python3 -m pytest
+PYTHONPATH=src python3 -m repoos --format json validate --all
+PYTHONPATH=src python3 -m repoos --help
+PYTHONPATH=src python3 -m repoos --format json doctor
+PYTHONPATH=src python3 -m repoos --format json check-update --project .
+python3 -m build --no-isolation
 ```
 
-Before relying on CI, confirm the runner is online in GitHub:
+An isolated `python3 -m build` may require network access to provision build dependencies. `--no-isolation` is the verified offline local path when the declared build backend is installed.
 
-```text
-Repository → Settings → Actions → Runners
-```
+## Required evidence
 
-If the MacBook runner is offline, asleep, or the runner process is stopped, Actions jobs may remain queued. See `docs/agentops/github-actions-runners.md`.
+Record command, exit status, relevant count/output, skipped checks, and failure classification. Do not claim backup, rollback, real apply, canary CI, or external behavior from the current dry-run-only test suite.
 
-## Verification summary format
+## CI
 
-```text
-Validation:
-- make agentops-pr: pass / did not pass / not run
-- make hooks-smoke: pass / did not pass / not run
-- make mcp-smoke: pass / did not pass / not run
-- make test: pass / did not pass / not run
-- GitHub Actions self-hosted runner: online / offline / not checked
+GitHub Actions uses hosted ephemeral runners, Python 3.11/3.13, read-only permissions, full-SHA action pins, concurrency cancellation, and timeouts. Local success is not evidence that an unobserved remote run passed.
 
-Notes:
-- <anything skipped and why>
-```
+## Safety confirmation
 
-## Target repo customization
-
-When RepoOS is copied into another repository, add that repo's real commands here:
-
-- lint
-- typecheck
-- unit tests
-- integration tests
-- build
-- docs checks
-- runner labels if different from `self-hosted`, `macOS`, `ARM64`
+Confirm no downstream repository, dirty tree, user-global file, GitHub setting, runner, issue, branch push, PR, release, or merge was changed unless the exact action was separately authorized and recorded.

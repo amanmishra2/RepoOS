@@ -1,51 +1,51 @@
-# MEMORY.md
+# RepoOS durable memory
 
-This file stores durable repo memory for agents. It is not a diary and should not contain transient task notes.
+This file contains stable repository facts, not task notes or raw portfolio evidence.
 
-## Current repo facts
+## Current facts
 
-- This repository is a generic Continuous AgentOps template.
-- The template is designed to be copied into other repositories.
-- Project-specific content should live in the target repository after installation, not in the reusable template.
+- RepoOS is a deterministic repository control plane, not a copyable whole-tree template.
+- Version `0.1.0` implements read-only discovery/validation and fixture-bounded planning with dry-run apply revalidation.
+- Apply execution, downstream adoption, user-global installation, external GitHub mutation, release publication, managed sections, real overlays, and AI promotion are not implemented.
+- RepoOS is public; committed portfolio evidence uses aliases and redaction.
+- Initial CI uses GitHub-hosted ephemeral runners with read-only permissions and immutable action pins.
+- The public registry contains RepoOS only; private mappings belong in the ignored local overlay.
 
-## Known constraints
+## Durable constraints
 
-- Keep `AGENTS.md` short and map-like.
-- Keep `.codex/`, `.agents/skills/`, and `docs/agentops/` reusable by default.
-- Do not store secrets, credentials, tokens, or private customer data.
-- Do not create unbounded autonomous loops.
-- Write actions must be reviewable and test-gated.
+- Unknown ownership is repository-owned.
+- Dirty, paused, locked, stale, conflicted, out-of-root, symlinked, or ambiguous mutation targets fail closed.
+- Linked worktrees sharing one common Git directory share safety and lock identity.
+- Discovery does not execute project code or modify the registry.
+- RepoOS never implicitly commits, pushes, opens PRs, merges, or changes external settings.
+- No secret, credential, private customer data, database content, raw trace, or private project identifier belongs in public reports.
+- Every shipped guardrail needs a semantic positive and negative fixture.
 
-## Repeated agent mistakes
+## Known limitations
 
-Use this format when a mistake repeats:
+- Apply is dry-run-only.
+- Backups, operation journal execution, atomic multi-file apply, and rollback are designed but not yet shipped.
+- No downstream canary is approved.
+- Portfolio-wide Codex/workflow deep validation is incomplete outside RepoOS.
+- Installed Codex acceptance is not treated as strict schema validation.
+
+## Repeated-failure record format
 
 ```md
 ### Mistake: <name>
-- Observed behavior:
+- Evidence:
 - Correct behavior:
 - Prevention mechanism:
-- Related files:
+- Validation:
+- Related issue:
 ```
 
-## Recently changed conventions
-
-Use this format:
+## Convention-change format
 
 ```md
 ### <YYYY-MM-DD> — <change>
-- Change:
+- Verified behavior:
 - Reason:
-- Files affected:
-```
-
-## Deprecated guidance
-
-Use this format:
-
-```md
-### Deprecated: <guidance>
-- Replacement:
-- Removal date:
-- Cleanup issue:
+- Migration/rollback:
+- Files:
 ```
