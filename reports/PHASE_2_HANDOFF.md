@@ -1,7 +1,9 @@
 # Phase 2 implementation handoff
 
 Date: 2026-07-23
-Status: RepoOS foundation and transactional fixture engine complete locally; readiness audit complete; real canary blocked
+Updated: 2026-07-25
+Status: Phase 2 foundation/fixture engine and guarded manifest-bootstrap prerequisite complete
+locally; no real canary executed
 
 ## Repository state
 
@@ -64,6 +66,9 @@ Executable deletion, force apply/rollback, multiple sections in one file, struct
 real-repository apply, release migration, commit, push, PR creation, external settings, global
 installation, broad rollout, and automatic learning promotion remain unsupported.
 
+The preceding paragraph is the historical `0.2.0` boundary. RepoOS `0.3.0` adds only the
+real-repository exception documented below; all other listed limitations remain.
+
 ## Transaction validation
 
 | Command/check | Result |
@@ -85,6 +90,50 @@ active/stale/malformed locks, explicit recovery, different-repository concurrenc
 refusal, backup failure/integrity, one-write failure, validation failure, rollback failure,
 interruption, symlink/traversal, marker ambiguity, every safety-limit class, repeat apply, repeat
 rollback, and byte/mode restoration.
+
+## Guarded manifest-bootstrap extension
+
+RepoOS `0.3.0` preserves update-plan v2 and adds the separate
+`repoos.manifest-bootstrap-plan.v1` operation for one absent `.repoos/project.yaml`.
+
+- The plan binds canonical target/worktree/common-Git paths, branch, HEAD, target cleanliness,
+  content-free sibling summaries, common-Git metadata, exact manifest bytes/schema/version,
+  destination absence, parent state, fixed limits, validations, and authorization requirements.
+- The reviewed manifest is strictly validated before planning and apply. It requires explicit
+  sensitivity, no overlays/local overrides/managed/generated/extensions, bounded
+  repository-owned/excluded identifiers, repository validation commands, and denied mutation
+  permissions.
+- A local mode-`0600` receipt binds the exact operation, worktree/common Git directory, branch,
+  HEAD, plan, manifest, destination, authorizer hash, and expiration. One transaction reserves and
+  consumes it; it cannot be replayed or used elsewhere.
+- The common-Git lock serializes sibling worktrees. Dirty siblings are protected, not cleaned:
+  bodies are not opened, untracked names are not persisted, and pre/post HEAD/status/index/lock/
+  registration summaries must match.
+- Apply renders outside the destination, records absence-aware backup evidence, installs exactly
+  one file without overwrite, validates bytes/mode/schema, runs bounded repository commands, and
+  proves Git/sibling preservation.
+- Automatic/manual rollback removes only the created manifest and a transaction-created parent
+  that remains empty. It preserves pre-existing directories/content, is idempotent, and never uses
+  Git reset/clean/checkout/stash/prune.
+- General real-repository update, existing-manifest replacement, overlays/components, Git
+  metadata writes, commit, push, PR, GitHub, user-global files, force, and safety overrides remain
+  refused.
+
+All destructive, failure-injection, interruption, rollback, drift, and concurrency proofs use
+temporary synthetic repositories. Installed-wheel smoke exercises both the unchanged fixture path
+and the new bootstrap lifecycle.
+
+| `0.3.0` validation/check | Result |
+|---|---|
+| `make verify` | Pass |
+| Ruff format/lint | Pass; 50 Python files formatted |
+| MyPy | Pass; 18 source files |
+| Full Pytest | Pass; 192 tests |
+| Focused manifest-bootstrap integration | Pass; 48 tests |
+| `repoos validate --all` and `doctor` | Pass; all 11 schemas |
+| Offline sdist/wheel build | Pass; `repoos-0.3.0` artifacts |
+| Installed-wheel workflow | Pass; fixture update and manifest bootstrap |
+| Dirty-sibling/body-name, dry-run, rollback, replay, race, and general-real-refusal proofs | Pass |
 
 ## Inventory and canary status
 
@@ -114,11 +163,24 @@ private overlay.
   worktree contains 18 untracked implementation files and must be preserved.
 - The live default-branch tracked state passes Product CI and AgentOps local equivalents.
 - Sensitivity remains a user-approved decision; evidence supports personal-data risk.
-- RepoOS `0.2.0` cannot authorize a real repository or bootstrap an absent adoption manifest. A
-  bounded synthetic-only engine issue is required first.
+- At the time of the readiness packet, RepoOS `0.2.0` could not authorize a real repository or
+  bootstrap an absent adoption manifest. The synthetic-only `0.3.0` prerequisite is now complete;
+  it does not retroactively authorize P08.
 - P08 remains provisional but `blocked`; P04-B is `unsuitable_as_first_canary`.
 
 No downstream or GitHub mutation was performed by the readiness audit.
+
+## P08 preservation decision
+
+P08-W2 contains active or potentially active implementation work and must remain in place.
+RepoOS must not inspect its untracked bodies, report its names/content, archive, delete, clean,
+prune, move, reset, stash, or modify it. P08-W1 also remains unchanged. Neither is the canary
+target.
+
+A later P08 run must revalidate current GitHub `main`, create a new isolated worktree, review a
+manifest-only dry run, stop for execute approval, apply and run the full P08 profile, demonstrate
+rollback, stop for reapplication approval, and create at most a local manifest-only commit. Push
+and pull request require separate authorization.
 
 ## Safety confirmation
 
@@ -135,6 +197,6 @@ No downstream or GitHub mutation was performed by the readiness audit.
 
 ## Next gate
 
-Run the preservation-first read-only P08 hygiene prompt from the readiness packet. Separately
-implement the synthetic-only real-repository manifest-bootstrap gate. Do not adopt a canary until
-ROS-011 receives exact target authorization and every repository and engine blocker is resolved.
+Use the date-stamped manifest-bootstrap next-canary prompt in a separate run. Do not execute it as
+part of the RepoOS implementation transaction. Exact worktree creation, manifest execute,
+post-rollback reapplication, local commit, push, and pull request remain separate decisions.

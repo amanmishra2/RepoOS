@@ -1,6 +1,7 @@
 # Schema reference
 
-RepoOS uses JSON Schema Draft 2020-12 with unknown-field rejection.
+RepoOS uses JSON Schema Draft 2020-12 with unknown-field rejection. `doctor` and `validate --all`
+load all 11 contracts.
 
 Desired-state and learning contracts:
 
@@ -12,23 +13,33 @@ Desired-state and learning contracts:
 
 Transactional contracts:
 
-- `update-plan.schema.json` — immutable plan v2, exact roots/Git/manifest/ownership/hashes/limits
-- `transaction.schema.json` — lifecycle, affected paths, validation, rollback, and failure state
-- `backup-manifest.schema.json` — approved original bytes/modes, restore order, and integrity digest
-- `transaction-observation.schema.json` — bounded public-safe outcome for the learning system
+- `update-plan.schema.json` — immutable marked-fixture update-plan v2;
+- `manifest-bootstrap-plan.schema.json` — immutable one-file real-worktree bootstrap plan v1;
+- `manifest-bootstrap-authorization.schema.json` — expiring local exact-binding approval v1;
+- `transaction.schema.json` — lifecycle, operation kind, affected paths, validation, and failure;
+- `backup-manifest.schema.json` — operation-specific original/absence and restoration evidence;
+- `transaction-observation.schema.json` — bounded public-safe transaction outcome.
 
-Plan IDs are canonical SHA-256 digests of every plan field except `plan_id`. Backup manifests have
-a second canonical integrity digest plus hashes for the exact plan, manifest, transaction, and
-target-state snapshots and every stored original file. Code additionally enforces cross-field
-invariants such as restore order, existed/backup metadata, transaction identity, clean target
-state, and content hashes.
+Fixture plan IDs are canonical SHA-256 digests of every field except `plan_id`. Bootstrap plans
+carry both a canonical plan ID and explicit plan digest; both bind every other plan field.
+Bootstrap authorization IDs digest their immutable exact-target/plan/manifest binding while
+lifecycle fields record reservation and consumption.
 
-Representative valid and invalid transactional fixtures live under `tests/fixtures/schemas/`.
+Backup manifests have a canonical integrity digest plus hashes for the exact plan, manifest,
+transaction, and target-state snapshots. Bootstrap backups additionally prove destination absence,
+parent state, authorization/manifest digests, and protected sibling/common-Git summaries. Code
+enforces cross-field invariants including operation kind, restore order, path state, transaction
+identity, clean target, ownership, modes, hashes, and absence.
+
+The project-manifest schema remains compatible with existing manifests; its optional
+`sensitivity_classification` field is required by the stricter manifest-bootstrap semantic gate.
+Bootstrap also requires exact RepoOS version `0.3.0`, no managed/generated/extension components,
+no overlays or local overrides, and denied mutation permissions.
 
 Validate a document:
 
 ```bash
-repoos validate path/to/document.json --schema transaction
+repoos validate path/to/document.json --schema manifest-bootstrap-plan
 ```
 
 Validate all RepoOS surfaces:
@@ -37,6 +48,6 @@ Validate all RepoOS surfaces:
 repoos --format json validate --all
 ```
 
-Transaction and backup records live in the configured local state directory and are not committed
-automatically. The public-safe observation does not contain target paths, full content, environment
-values, credentials, or unbounded command output.
+Transaction, backup, plan, and authorization artifacts belong in local state and are not committed
+automatically. Public-safe observations exclude target paths, sibling paths, file/untracked names
+and bodies, authorization identity text, environment values, credentials, and unbounded output.

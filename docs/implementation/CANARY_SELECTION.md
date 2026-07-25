@@ -1,76 +1,59 @@
 # Canary selection
 
-Status: readiness and preservation-first hygiene refreshed 2026-07-23; P08 remains provisional
-and blocked
+Status: P08 remains the provisional canary; engine prerequisite complete in RepoOS `0.3.0`;
+downstream execution not performed
 
-## Historical foundation assessment
+## Evidence
 
-The Phase 2 foundation inventory selected P08 provisionally because its primary checkout was clean
-and independent while P04-B shared P04-A's dirty common Git directory. That historical snapshot
-recorded 16 P08 worktree registrations, 15 prunable, and left identity, commands, family,
-sensitivity, ownership, and remote authority unresolved.
+The public-safe
+[readiness packet](../../reports/canary-readiness/2026-07-23/README.md) and
+[preservation packet](../../reports/canary-hygiene/2026-07-23/README.md) remain the evidence base.
+Exact mappings remain outside committed artifacts.
 
-The historical evidence is preserved in
-[portfolio-inventory.md](../../reports/baseline/portfolio-inventory.md). Its P08 worktree count is
-stale and must not be used as current state.
+| Alias | Confirmed positive evidence | Decision |
+|---|---|---|
+| P08 | Private active repository; live `main`; Python CLI/application; exact offline gates; two current worktrees; no prunable record; reviewed one-file ownership proposal | Provisional rank 1; later isolated canary only |
+| P04-B | Identifiable clean worktree | Unsuitable: shared dirty/common-Git and stale/ambiguous registry boundary |
+| P04-A | Active canonical common-Git owner | Blocked by current dirty state |
+| Other historical candidates | Baseline evidence retained | Not refreshed; no eligibility |
 
-## Refreshed assessment
+## Authoritative P08-W2 decision
 
-The detailed public-safe packet is
-[canary-readiness/2026-07-23](../../reports/canary-readiness/2026-07-23/README.md).
-Exact mappings remain only in the ignored private overlay.
+P08-W2 contains active or potentially active implementation work. Preserve it in place.
 
-| Alias | Confirmed positive evidence | Current blockers | Decision |
-|---|---|---|---|
-| P08 | Identity, private GitHub repository, live `main`, active lifecycle, standalone Python CLI/application family, exact offline gates, proposed ownership boundary, two current worktrees and zero prunable records | Primary checkout is 29 commits behind after its branch merged; second worktree has 18 untracked implementation files; sensitivity and manifest ownership need approval; real-repository manifest bootstrap is unsupported | Provisional rank 1; `blocked` |
-| P04-B | Exact remote verified; target worktree clean; GitHub and validation surface identifiable | Shares P04-A's dirty common Git directory; 67 commits behind live `main` and seven behind its remote branch; 64 shared worktree records with 10 prunable; instruction drift; no independent rollback boundary | `unsuitable_as_first_canary` |
-| P04-A | Active repository and canonical common-Git owner | Three tracked and 54 untracked changes; large shared worktree registry | Block |
-| Other historical candidates | Baseline evidence retained | Not refreshed in this bounded audit | No new eligibility |
+- Do not inspect its untracked file bodies.
+- Do not archive, delete, clean, prune, move, reset, stash, repair, or modify it.
+- Do not use it as the canary target.
+- Exclude it from RepoOS writes.
+- Exclude its untracked contents from reports and learning records.
 
-The earlier “upstream gone” finding is now resolved: P08's repository and remote are valid; only the
-primary local issue branch's remote ref is gone after its pull request merged. It should not be
-repaired or reused as the canary base.
+P08-W1 is also not a canary target and remains unchanged. A dirty P08-W2 is not itself a target
+cleanliness failure for a separate clean worktree; RepoOS `0.3.0` classifies it as a protected
+sibling and requires its metadata/state summary to remain unchanged.
 
-## Preservation-first hygiene result
+## Required future target
 
-The
-[2026-07-23 preservation packet](../../reports/canary-hygiene/2026-07-23/README.md)
-revalidated the exact two-worktree state, GitHub state, workflow conclusions, access, and open
-pull-request overlap without finding a stop-condition delta. No cleanup is indicated. Both
-worktrees remain untouched, and the canary is deferred.
+A later canary must revalidate current GitHub `main` and create a new isolated, issue-linked
+worktree from that exact base. The canary must use only that clean worktree, while P08-W1 and
+P08-W2 remain registered and unchanged. Locked, malformed, prunable, or drifting sibling metadata
+blocks execution; RepoOS never cleans it automatically.
 
-P08 can become `eligible_after_repository_hygiene` after P08-W2 receives an owner-directed,
-lossless disposition and a fresh issue-linked base can be established without touching preserved
-work. That conditional label describes repository hygiene only. P08 remains blocked now and is not
-engine-ready; the separate real-repository manifest-bootstrap enhancement must still pass
-synthetic verification.
+The first proposal remains exactly `.repoos/project.yaml`, with:
 
-## Selection
+- project family `null`;
+- no overlays, managed/generated/extension components, or local overrides;
+- explicit personal-data sensitivity for review;
+- repository-owned P08 validation commands;
+- apply/commit/push/external permissions denied.
 
-P08 remains the only provisional candidate. This is a relative ranking, not approval. A real canary
-is not authorized.
+RepoOS `0.3.0` now provides the synthetic-verified planning, one-use authorization, locking,
+atomic creation, validation, and rollback prerequisite. That implementation does not authorize a
+P08 write. The later run must stop for explicit execute approval, demonstrate rollback, stop again
+for reapplication approval, and create at most a local manifest-only commit. Push and pull request
+remain separately prohibited without new authority.
 
-P08 must first complete:
+## Stop decision for this run
 
-1. preservation-first repository hygiene for its active secondary worktree;
-2. a fresh authoritative base assessment;
-3. the separate RepoOS real-repository manifest-bootstrap enhancement;
-4. user approval of sensitivity, manifest ownership, and the one-file scope.
-
-The current first-step proposal remains manifest-only. No ordinary managed or generated component
-is selected. A second bounded component may be considered only after the manifest proposal,
-repository-owned validation, no-op repeat, and forward rollback all succeed.
-
-## Human decisions
-
-The unresolved canary decisions in
-[12_USER_CONFIRMATION_REQUIRED.md](../../reports/canary-readiness/2026-07-23/12_USER_CONFIRMATION_REQUIRED.md)
-and the preservation choices in
-[02_ALTERNATIVES_AND_APPROVALS.md](../../reports/canary-hygiene/2026-07-23/02_ALTERNATIVES_AND_APPROVALS.md)
-remain. Identity, canonical remote, lifecycle, default branch, validation commands, family
-classification, and current worktree state are evidence-backed facts.
-
-## Stop decision
-
-Downstream mutation remains blocked. Do not prune, repair, create a canary worktree, add a manifest,
-execute RepoOS, commit downstream, push, or open a pull request under this assessment.
+Do not create the P08 canary worktree or inspect/modify either existing P08 worktree in this run.
+Do not add a downstream manifest, execute RepoOS downstream, commit downstream, push, or open a
+pull request. Use the date-stamped next-canary prompt only in a separate authorized run.

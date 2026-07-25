@@ -1,6 +1,6 @@
 manifest_version: 1
 project_id: repoos
-repoos_version: 0.2.0
+repoos_version: 0.3.0
 project_family: null
 additional_overlays: []
 components:

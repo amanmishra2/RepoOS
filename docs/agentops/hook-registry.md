@@ -1,6 +1,6 @@
 # Hook registry
 
-RepoOS `0.2.0` has no active Codex hooks:
+RepoOS `0.3.0` has no active Codex hooks:
 
 ```json
 {"hooks": {}}

@@ -17,10 +17,13 @@ The detailed dependency graph is [VALIDATED_ISSUE_BACKLOG.md](implementation/VAL
 
 ## Canary
 
-- Perform a read-only readiness refresh; fixture success alone does not make a real target eligible.
-- Obtain explicit P08 confirmation and Git reconciliation.
-- Submit manifest-only adoption, then one bounded component.
-- Prove repository validation, no-op repeat, and forward rollback.
+- Completed locally: guarded real-worktree manifest bootstrap with exact authorization,
+  multi-worktree protection, and synthetic rollback proof.
+- In a later run, revalidate GitHub `main` and create a new isolated P08 worktree while preserving
+  P08-W1 and P08-W2.
+- Review dry run; stop for execute approval; apply only the manifest; validate and roll back.
+- Stop for reapplication approval; create only a local manifest commit after all gates.
+- Push, PR, and any bounded component remain separately authorized future work.
 
 ## Later
 

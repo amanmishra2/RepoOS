@@ -25,6 +25,8 @@ _SCHEMAS = {
     "update-plan": "update-plan.schema.json",
     "transaction": "transaction.schema.json",
     "backup-manifest": "backup-manifest.schema.json",
+    "manifest-bootstrap-authorization": "manifest-bootstrap-authorization.schema.json",
+    "manifest-bootstrap-plan": "manifest-bootstrap-plan.schema.json",
     "transaction-observation": "transaction-observation.schema.json",
 }
 _HOOK_EVENTS = {

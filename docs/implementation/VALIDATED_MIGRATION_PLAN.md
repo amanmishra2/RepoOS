@@ -2,6 +2,7 @@
 
 Status: active
 Validated: 2026-07-23
+Updated: 2026-07-25
 
 ## Preconditions
 
@@ -41,6 +42,19 @@ Exit gate: clean build, schema valid/invalid fixtures, deterministic JSON, no-wr
 
 Exit gate: dirty/stale/conflict/lock/path-escape refusals pass; repeat execution is idempotent; no real project changed.
 
+### Wave 2.5 — Guarded manifest-bootstrap prerequisite
+
+1. Preserve update-plan v2 unchanged.
+2. Add a separate immutable one-file plan and exact expiring authorization.
+3. Prove target cleanliness and dirty-sibling preservation as separate controls.
+4. Add absence-aware backup, exclusive atomic creation, creation-identity evidence, and bounded
+   automatic/manual rollback.
+5. Exercise only temporary synthetic single/multi-worktree repositories, including races,
+   interruption, drift, replay, and concurrency.
+
+Exit gate: the complete suite and installed wheel pass; all other real-repository operations remain
+refused; no downstream or global state changes.
+
 ### Wave 3 — RepoOS active-surface repair
 
 1. Replace unsupported Codex config.
@@ -54,11 +68,14 @@ Exit gate: Codex/workflow validators and negative fixtures pass; docs match beha
 ### Wave 4 — Canary proposal
 
 1. Refresh candidate Git and GitHub state read-only.
-2. Obtain explicit human confirmation of identity, lifecycle, sensitivity, commands, ownership, family, and P08 as canary.
-3. Create an isolated issue-linked branch/worktree only in the selected repository.
-4. First PR: manifest/lock adoption with no behavior change.
-5. Second PR: one bounded component only after the first is reviewed.
-6. Demonstrate forward rollback.
+2. Preserve P08-W1 and active/potentially-active P08-W2 without body inspection or cleanup.
+3. Obtain explicit human confirmation of identity, sensitivity, commands, ownership, exact
+   manifest, and P08 as canary.
+4. Create a new isolated issue-linked branch/worktree from revalidated current `main`.
+5. Plan/dry-run the manifest only; stop for execute approval.
+6. Apply, validate, demonstrate transaction rollback, and stop for reapplication approval.
+7. Reapply and create at most a local manifest-only commit. Push/PR remain separately authorized.
+8. Consider one bounded component only in a later proposal.
 
 Exit gate: user reviews the diff; repository CI-equivalent checks pass; post-merge plan is a no-op.
 
@@ -75,6 +92,8 @@ Stop portfolio rollout on shared regression, repeated conflict, permission expan
 ## Rollback
 
 - Uncommitted fixture apply: restore from the operation journal and backups.
+- Uncommitted manifest bootstrap: remove only the transaction-created manifest and, when proven,
+  its empty transaction-created parent; preserve all unrelated/sibling state.
 - Merged repository update: generate a new forward proposal targeting the previous immutable version; never rewrite history.
 - GitHub setting: out of scope; record the exact manual rollback separately before any approved mutation.
 - User-global install: out of scope until backup, checksum, adoption, and restore contracts exist.

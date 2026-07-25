@@ -1,0 +1,351 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/manifest-bootstrap-plan.schema.json",
+  "title": "RepoOS guarded manifest-bootstrap plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan_version",
+    "plan_id",
+    "plan_digest",
+    "operation_kind",
+    "repoos_source_version",
+    "project_id",
+    "target_repository",
+    "target_worktree",
+    "repository_path_sha256",
+    "git_common_dir",
+    "git_common_dir_sha256",
+    "target_branch",
+    "base_commit",
+    "status_fingerprint",
+    "target_worktree_state",
+    "sibling_worktrees",
+    "common_git_state",
+    "manifest_input",
+    "manifest_input_path_sha256",
+    "manifest",
+    "destination",
+    "expected_destination_state",
+    "parent_directory",
+    "repository_file_count",
+    "components",
+    "operations",
+    "validation_commands",
+    "safety",
+    "validation_requirements",
+    "authorization_requirements",
+    "dry_run_default"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "plan_version": {"const": "repoos.manifest-bootstrap-plan.v1"},
+    "plan_id": {"type": "string", "pattern": "^plan-[a-f0-9]{64}$"},
+    "plan_digest": {"$ref": "#/$defs/hash"},
+    "operation_kind": {"const": "manifest_bootstrap"},
+    "repoos_source_version": {"$ref": "#/$defs/version"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "target_repository": {"type": "string", "minLength": 1},
+    "target_worktree": {"type": "string", "minLength": 1},
+    "repository_path_sha256": {"$ref": "#/$defs/hash"},
+    "git_common_dir": {"type": "string", "minLength": 1},
+    "git_common_dir_sha256": {"$ref": "#/$defs/hash"},
+    "target_branch": {"$ref": "#/$defs/id_or_branch"},
+    "base_commit": {"$ref": "#/$defs/object_id"},
+    "status_fingerprint": {"$ref": "#/$defs/hash"},
+    "target_worktree_state": {"$ref": "#/$defs/worktree_summary"},
+    "sibling_worktrees": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/worktree_summary"}
+    },
+    "common_git_state": {"$ref": "#/$defs/common_git_state"},
+    "manifest_input": {"type": "string", "minLength": 1},
+    "manifest_input_path_sha256": {"$ref": "#/$defs/hash"},
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "sha256", "size_bytes"],
+      "properties": {
+        "version": {"const": 1},
+        "sha256": {"$ref": "#/$defs/hash"},
+        "size_bytes": {"type": "integer", "minimum": 1, "maximum": 65536}
+      }
+    },
+    "destination": {"const": ".repoos/project.yaml"},
+    "expected_destination_state": {"const": "absent"},
+    "parent_directory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "mode", "entry_count", "entries_sha256"],
+      "properties": {
+        "state": {"enum": ["absent", "existing_directory"]},
+        "mode": {
+          "oneOf": [
+            {"type": "integer", "minimum": 0, "maximum": 4095},
+            {"type": "null"}
+          ]
+        },
+        "entry_count": {"type": "integer", "minimum": 0},
+        "entries_sha256": {
+          "oneOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]
+        }
+      }
+    },
+    "repository_file_count": {"type": "integer", "minimum": 1},
+    "components": {
+      "type": "array",
+      "prefixItems": [{"const": "repository-manifest"}],
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "operations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/operation"},
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "validation_commands": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/command"},
+      "minItems": 1,
+      "maxItems": 20
+    },
+    "safety": {"$ref": "#/$defs/safety"},
+    "validation_requirements": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "manifest_schema",
+          "manifest_semantics",
+          "installed_bytes",
+          "repository_commands",
+          "target_git_preservation",
+          "sibling_worktree_preservation"
+        ]
+      },
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true
+    },
+    "authorization_requirements": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "operation_kind",
+          "target_repository",
+          "target_worktree_id",
+          "git_common_dir",
+          "target_head",
+          "target_branch",
+          "plan_id",
+          "plan_digest",
+          "manifest_sha256",
+          "destination",
+          "created_at",
+          "expires_at",
+          "authorizer"
+        ]
+      },
+      "minItems": 13,
+      "maxItems": 13,
+      "uniqueItems": true
+    },
+    "dry_run_default": {"const": true}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "object_id": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "id_or_branch": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "not": {"pattern": "(^/|\\.\\.|[\\x00-\\x1f~^:?*\\[\\\\])"}
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "portable_path": {
+      "type": "string",
+      "minLength": 1,
+      "not": {"pattern": "(^/|(^|/)\\.\\.(/|$)|\\\\)"}
+    },
+    "worktree_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "worktree_id",
+        "classification",
+        "head",
+        "branch_sha256",
+        "status_fingerprint",
+        "tracked_changes",
+        "untracked_entries",
+        "clean",
+        "locked",
+        "prunable",
+        "git_dir_sha256",
+        "head_metadata_sha256",
+        "index_sha256"
+      ],
+      "properties": {
+        "worktree_id": {"$ref": "#/$defs/hash"},
+        "classification": {
+          "enum": ["target_clean", "protected_clean", "protected_dirty"]
+        },
+        "head": {"$ref": "#/$defs/object_id"},
+        "branch_sha256": {"$ref": "#/$defs/hash"},
+        "status_fingerprint": {"$ref": "#/$defs/hash"},
+        "tracked_changes": {"type": "integer", "minimum": 0},
+        "untracked_entries": {"type": "integer", "minimum": 0},
+        "clean": {"type": "boolean"},
+        "locked": {"const": false},
+        "prunable": {"const": false},
+        "git_dir_sha256": {"$ref": "#/$defs/hash"},
+        "head_metadata_sha256": {"$ref": "#/$defs/hash"},
+        "index_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "common_git_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "common_dir_sha256",
+        "worktree_registration_sha256",
+        "refs_sha256",
+        "config_sha256",
+        "head_sha256",
+        "transient_lock_count",
+        "worktree_count",
+        "worktree_summaries_sha256"
+      ],
+      "properties": {
+        "common_dir_sha256": {"$ref": "#/$defs/hash"},
+        "worktree_registration_sha256": {"$ref": "#/$defs/hash"},
+        "refs_sha256": {"$ref": "#/$defs/hash"},
+        "config_sha256": {"$ref": "#/$defs/hash"},
+        "head_sha256": {"$ref": "#/$defs/hash"},
+        "transient_lock_count": {"const": 0},
+        "worktree_count": {"type": "integer", "minimum": 1},
+        "worktree_summaries_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argv"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "argv": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1, "maxLength": 512},
+          "minItems": 1,
+          "maxItems": 32
+        }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "action",
+        "ownership",
+        "component",
+        "source",
+        "target",
+        "source_sha256",
+        "before_sha256",
+        "after_sha256",
+        "before_mode",
+        "after_mode",
+        "before_size_bytes",
+        "after_size_bytes",
+        "line_stats",
+        "managed_section"
+      ],
+      "properties": {
+        "operation_id": {"type": "string", "pattern": "^op-[a-f0-9]{16}$"},
+        "action": {"const": "create"},
+        "ownership": {"const": "adoption_manifest"},
+        "component": {"const": "repository-manifest"},
+        "source": {"$ref": "#/$defs/portable_path"},
+        "target": {"const": ".repoos/project.yaml"},
+        "source_sha256": {"$ref": "#/$defs/hash"},
+        "before_sha256": {"type": "null"},
+        "after_sha256": {"$ref": "#/$defs/hash"},
+        "before_mode": {"type": "null"},
+        "after_mode": {"const": 420},
+        "before_size_bytes": {"const": 0},
+        "after_size_bytes": {"type": "integer", "minimum": 1, "maximum": 65536},
+        "line_stats": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["added", "removed"],
+          "properties": {
+            "added": {"type": "integer", "minimum": 1, "maximum": 1000},
+            "removed": {"const": 0}
+          }
+        },
+        "managed_section": {"type": "null"}
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limits", "measurements", "violations"],
+      "properties": {
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_files_changed",
+            "max_files_created",
+            "max_files_edited",
+            "max_files_deleted",
+            "max_manifest_bytes",
+            "max_yaml_nodes",
+            "max_yaml_depth",
+            "allowed_destination"
+          ],
+          "properties": {
+            "max_files_changed": {"const": 1},
+            "max_files_created": {"const": 1},
+            "max_files_edited": {"const": 0},
+            "max_files_deleted": {"const": 0},
+            "max_manifest_bytes": {"const": 65536},
+            "max_yaml_nodes": {"const": 1000},
+            "max_yaml_depth": {"const": 20},
+            "allowed_destination": {"const": ".repoos/project.yaml"}
+          }
+        },
+        "measurements": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "files_changed",
+            "files_created",
+            "files_edited",
+            "files_deleted",
+            "manifest_bytes",
+            "manifest_lines"
+          ],
+          "properties": {
+            "files_changed": {"const": 1},
+            "files_created": {"const": 1},
+            "files_edited": {"const": 0},
+            "files_deleted": {"const": 0},
+            "manifest_bytes": {"type": "integer", "minimum": 1, "maximum": 65536},
+            "manifest_lines": {"type": "integer", "minimum": 1, "maximum": 1000}
+          }
+        },
+        "violations": {"type": "array", "maxItems": 0}
+      }
+    }
+  }
+}

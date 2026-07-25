@@ -12,6 +12,7 @@ from typing import Any
 
 from repoos import __version__
 from repoos.apply import (
+    execute_manifest_bootstrap,
     execute_plan,
     precondition_error,
     rollback_transaction,
@@ -26,6 +27,17 @@ from repoos.errors import (
     validation_error,
 )
 from repoos.git import inspect_git, is_git_worktree
+from repoos.manifest_bootstrap import (
+    PLAN_VERSION as MANIFEST_BOOTSTRAP_PLAN_VERSION,
+)
+from repoos.manifest_bootstrap import (
+    assert_bootstrap_artifact_isolated,
+    build_manifest_bootstrap_plan,
+    create_manifest_bootstrap_authorization,
+    manifest_bootstrap_dry_run,
+    manifest_bootstrap_precondition_error,
+    read_manifest_bootstrap_plan,
+)
 from repoos.paths import require_directory, state_root
 from repoos.pause import get_pause_status
 from repoos.planning import (
@@ -63,6 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="repoos",
         description=(
             "Inspect, validate, plan, and transactionally update marked fixture repositories. "
+            "One explicitly authorized real-repository manifest bootstrap is also supported. "
             "Read-only and dry-run behavior remain the default; no command pushes or commits."
         ),
     )
@@ -193,24 +206,70 @@ def build_parser() -> argparse.ArgumentParser:
     plan_parser.add_argument("--output", help="Atomically write the plan JSON to this path.")
     plan_parser.set_defaults(handler=_handle_plan_update)
 
+    bootstrap_plan_parser = subparsers.add_parser(
+        "plan-manifest-bootstrap",
+        help="Plan creation of one absent real-repository .repoos/project.yaml.",
+    )
+    bootstrap_plan_parser.add_argument(
+        "--repository",
+        "--repo",
+        dest="repository",
+        required=True,
+        help="Explicit clean target worktree.",
+    )
+    bootstrap_plan_parser.add_argument(
+        "--manifest-input",
+        required=True,
+        help="Exact reviewed project-manifest YAML outside every registered worktree.",
+    )
+    bootstrap_plan_parser.add_argument(
+        "--output",
+        required=True,
+        help="Plan JSON output outside every worktree and common Git directory.",
+    )
+    bootstrap_plan_parser.set_defaults(handler=_handle_plan_manifest_bootstrap)
+
+    authorize_parser = subparsers.add_parser(
+        "authorize-manifest-bootstrap",
+        help="Create one expiring local authorization bound to an exact bootstrap plan.",
+    )
+    authorize_parser.add_argument("--plan", required=True, help="Reviewed bootstrap-plan JSON.")
+    authorize_parser.add_argument(
+        "--expires-in",
+        type=int,
+        default=1800,
+        metavar="SECONDS",
+        help="Authorization lifetime in seconds (60-86400).",
+    )
+    authorize_parser.add_argument(
+        "--approve",
+        action="store_true",
+        help="Explicitly approve this exact one-transaction bootstrap binding.",
+    )
+    authorize_parser.set_defaults(handler=_handle_authorize_manifest_bootstrap)
+
     apply_parser = subparsers.add_parser(
         "apply",
-        help="Dry-run or explicitly execute one approved fixture update plan.",
+        help="Dry-run or execute one fixture-update or guarded manifest-bootstrap plan.",
     )
-    apply_parser.add_argument("--plan", required=True, help="Explicit update-plan JSON.")
+    apply_parser.add_argument("--plan", required=True, help="Explicit immutable plan JSON.")
     apply_parser.add_argument(
         "--repository",
         "--repo",
         dest="repository",
-        help="Exact target fixture; defaults to the path bound into the plan.",
+        help="Exact target worktree; defaults to the path bound into the plan.",
     )
     apply_parser.add_argument(
         "--source-root",
         help="Exact component source root; defaults to the path bound into the plan.",
     )
+    apply_parser.add_argument(
+        "--authorization",
+        help="Exact local authorization receipt required by manifest bootstrap execute.",
+    )
     mode = apply_parser.add_mutually_exclusive_group()
     mode.add_argument("--dry-run", action="store_true", help="Preview only (the default).")
-    mode.add_argument("--execute", action="store_true", help="Execute the fixture transaction.")
+    mode.add_argument("--execute", action="store_true", help="Execute the bounded transaction.")
     apply_parser.add_argument(
         "--override-limit",
         action="append",
@@ -232,7 +291,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     rollback_parser = subparsers.add_parser(
         "rollback",
-        help="Restore only the files owned by one fixture transaction.",
+        help="Restore only the paths owned by one supported transaction.",
     )
     rollback_parser.add_argument("--transaction", required=True, help="Exact transaction ID.")
     rollback_parser.add_argument(
@@ -244,7 +303,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     transaction_parser = subparsers.add_parser(
         "transaction",
-        help="Inspect local fixture transaction records.",
+        help="Inspect local transaction records.",
     )
     transaction_commands = transaction_parser.add_subparsers(
         dest="transaction_command",
@@ -478,8 +537,117 @@ def _handle_plan_update(args: argparse.Namespace) -> dict[str, Any]:
     return plan
 
 
+def _handle_plan_manifest_bootstrap(args: argparse.Namespace) -> dict[str, Any]:
+    plan = build_manifest_bootstrap_plan(args.repository, args.manifest_input)
+    output = Path(args.output).expanduser().resolve()
+    repository = require_directory(args.repository)
+    common_dir = inspect_git(repository).common_dir
+    manifest_input = Path(args.manifest_input).expanduser().resolve()
+    assert_bootstrap_artifact_isolated(
+        repository,
+        output,
+        common_dir,
+        artifact_kind="Bootstrap plan output",
+    )
+    if output == manifest_input:
+        raise unsafe_state(
+            "Bootstrap plan output must not replace the manifest input.",
+            output=str(output),
+        )
+    written = write_plan(output, plan)
+    return {
+        "schema_version": "repoos.manifest-bootstrap-plan-write.v1",
+        "operation_kind": "manifest_bootstrap",
+        "plan_id": plan["plan_id"],
+        "plan_digest": plan["plan_digest"],
+        "manifest_sha256": plan["manifest"]["sha256"],
+        "destination": plan["destination"],
+        "output": str(written),
+        "protected_sibling_count": len(plan["sibling_worktrees"]),
+        "protected_dirty_sibling_count": sum(
+            item["classification"] == "protected_dirty" for item in plan["sibling_worktrees"]
+        ),
+        "target_repository_modified": False,
+    }
+
+
+def _handle_authorize_manifest_bootstrap(args: argparse.Namespace) -> dict[str, Any]:
+    if not args.approve:
+        raise RepoOSError(
+            "Exact manifest-bootstrap approval requires --approve.",
+            ExitCode.AUTHORIZATION_REQUIRED,
+            "authorization_required",
+            {},
+        )
+    plan = read_manifest_bootstrap_plan(args.plan)
+    path, authorization = create_manifest_bootstrap_authorization(
+        plan,
+        state_directory=state_root(args.state_dir),
+        expires_in_seconds=args.expires_in,
+    )
+    return {
+        "schema_version": "repoos.manifest-bootstrap-authorization-result.v1",
+        "operation_kind": "manifest_bootstrap",
+        "authorization_id": authorization["authorization_id"],
+        "authorization": str(path),
+        "state": authorization["state"],
+        "expires_at": authorization["expires_at"],
+        "plan_id": authorization["plan_id"],
+        "plan_digest": authorization["plan_digest"],
+        "manifest_sha256": authorization["manifest_sha256"],
+        "destination": authorization["destination"],
+        "credentials_stored": False,
+    }
+
+
 def _handle_apply(args: argparse.Namespace) -> dict[str, Any]:
+    unvalidated = load_document(args.plan)
+    if (
+        isinstance(unvalidated, dict)
+        and unvalidated.get("plan_version") == MANIFEST_BOOTSTRAP_PLAN_VERSION
+    ):
+        plan = read_manifest_bootstrap_plan(args.plan, verify_digest=False)
+        repository = args.repository or plan["target_repository"]
+        if args.source_root:
+            raise invalid_input(
+                "--source-root is fixture-only; bootstrap binds --manifest-input in its plan."
+            )
+        if args.override_limit:
+            raise invalid_input("Manifest-bootstrap safety limits cannot be overridden.")
+        manifest_input = plan["manifest_input"]
+        if args.execute:
+            if args.validation_timeout < 1:
+                raise invalid_input("Validation timeout must be positive.")
+            if not args.authorization:
+                raise RepoOSError(
+                    "Manifest-bootstrap execute requires an authorization receipt.",
+                    ExitCode.AUTHORIZATION_REQUIRED,
+                    "missing_authorization",
+                    {},
+                )
+            return execute_manifest_bootstrap(
+                plan,
+                repository,
+                manifest_input,
+                args.authorization,
+                state_directory=state_root(args.state_dir),
+                recover_stale_lock=args.recover_stale_lock,
+                validation_timeout=args.validation_timeout,
+            )
+        result = manifest_bootstrap_dry_run(
+            plan,
+            repository,
+            manifest_input,
+            state_directory=state_root(args.state_dir),
+            authorization_path=args.authorization,
+        )
+        if result["failures"]:
+            raise manifest_bootstrap_precondition_error("dry-run", result["failures"])
+        return result
+
     plan = read_plan(args.plan, verify_digest=False)
+    if args.authorization:
+        raise invalid_input("--authorization applies only to manifest-bootstrap plans.")
     repository = args.repository or plan["target_repository"]
     source_root = args.source_root or plan["source_root"]
     overrides = tuple(sorted(set(args.override_limit)))

@@ -15,71 +15,65 @@ python3 -m mypy src/repoos
 python3 -m pytest
 PYTHONPATH=src python3 -m repoos --format json validate --all
 PYTHONPATH=src python3 -m repoos --help
+PYTHONPATH=src python3 -m repoos plan-manifest-bootstrap --help
+PYTHONPATH=src python3 -m repoos authorize-manifest-bootstrap --help
 PYTHONPATH=src python3 -m repoos apply --help
 PYTHONPATH=src python3 -m repoos rollback --help
 PYTHONPATH=src python3 -m repoos transaction --help
 PYTHONPATH=src python3 -m repoos --format json doctor
 PYTHONPATH=src python3 -m repoos --format json check-update --project .
 python3 -m build --no-isolation
+python3 tools/verification/installed_wheel_smoke.py
+git diff --check
 ```
 
 An isolated `python3 -m build` may require network access to provision build dependencies.
-`--no-isolation` is the verified offline local path when the declared backend is installed.
+`--no-isolation` is the verified offline path when the declared backend is installed.
 
 ## Transaction proofs
 
-All target-write tests use temporary synthetic Git repositories:
+Every target-write, rollback, interruption, drift, and concurrency test uses synthetic Git
+repositories beneath temporary directories:
 
 ```bash
-python3 -m pytest tests/unit/test_ownership.py
-python3 -m pytest tests/unit/test_pause_and_locks.py
-python3 -m pytest tests/unit/test_safety_limits.py
-python3 -m pytest tests/unit/test_transactions.py
 python3 -m pytest tests/integration/test_transactional_apply.py
+python3 -m pytest tests/integration/test_manifest_bootstrap.py
 python3 -m pytest tests/cli/test_cli.py
 python3 -m pytest tests/schema/test_schemas.py
 python3 -m pytest tests/security
 ```
 
-These suites prove valid/invalid lifecycle transitions; marker ambiguity and outside-byte
-preservation; active/stale/malformed locks and explicit recovery; same-target refusal and
-different-target concurrency; every safety-limit class; backup failure/integrity; failure after one
-write; bounded validation failure; automatic and manual rollback; rollback failure terminality;
-interruption recovery; symlink/traversal refusal; dry-run no-write behavior; repeat apply refusal;
-repeat rollback idempotency; file-mode and byte-for-byte restoration; and transaction observation
-schema safety.
+The fixture suite proves existing update-plan v2 behavior, ownership/section boundaries, limits,
+locks, backup integrity, atomic writes, validation, interruption, and rollback.
+
+The manifest-bootstrap suite proves single/multi-worktree success; protected dirty sibling
+preservation without body opens or persisted untracked names; existing manifest/parent variants;
+dirty/stale/changed input/plan refusal; exact authorization expiry/replay/cross-worktree/HEAD
+binding; lock and sibling ambiguity; symlink/traversal/submodule/bare/detached limits;
+post-install validation and rollback; interrupted apply/rollback; sibling drift evidence;
+destination races; schema/broad-ownership refusal; same-common-Git serialization; unrelated-repo
+concurrency; fixture compatibility; general real-update refusal; and dry-run zero writes.
 
 ## Installed-wheel smoke
 
-Build the wheel, install it without dependencies into a fresh temporary virtual environment that
-can see the already verified dependencies, and run:
-
-```bash
-repoos --version
-repoos --format json doctor
-repoos apply --help
-repoos rollback --help
-repoos transaction --help
-```
-
-The full installed-wheel proof additionally creates a temporary marked Git fixture and executes
-plan, dry-run, apply, transaction show/list, manual rollback, and repeat rollback. It must not use a
-real repository.
+`make wheel-smoke` builds the wheel, installs it without dependencies into a fresh temporary
+virtual environment with verified site packages, and runs version/doctor/help plus full synthetic
+fixture and manifest-bootstrap workflows. Bootstrap smoke includes plan, no-state dry run,
+authorization, apply, transaction show/list, manual rollback, and repeated rollback. It never uses
+a downstream repository or network service.
 
 ## Required evidence
 
-Record command, exit status, test count, relevant proof, skipped checks, and failure classification.
-Do not claim real-repository, canary CI, release compatibility, deletion, force rollback, external,
-or user-global behavior from fixture tests.
+Record command, exit status, test count, protected-worktree proof, no-write proof, rollback proof,
+authorization lifecycle, installed-wheel result, skipped checks, and failure classification. Do
+not infer downstream canary success from synthetic proof.
 
-## CI
+## CI and safety confirmation
 
-GitHub Actions uses hosted ephemeral runners, Python 3.11/3.13, read-only permissions, full-SHA
+GitHub Actions uses hosted ephemeral runners, Python 3.11/3.13, read-only permissions, immutable
 action pins, concurrency cancellation, and timeouts. Local success is not evidence that an
 unobserved remote run passed.
 
-## Safety confirmation
-
-Confirm no downstream repository, dirty tree, user-global file, GitHub setting, runner, issue,
-branch push, PR, release, or merge was changed unless the exact action was separately authorized
-and recorded.
+Confirm no downstream repository, protected dirty worktree, user-global file, GitHub resource,
+runner, branch push, PR, release, or merge changed unless that exact action was separately
+authorized and recorded.

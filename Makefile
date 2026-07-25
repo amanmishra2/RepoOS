@@ -1,10 +1,10 @@
 PYTHON ?= python3
 REPOOS = env PYTHONPATH=src $(PYTHON) -m repoos
 
-.PHONY: verify test lint format format-check typecheck build validate cli-smoke \
+.PHONY: verify test lint format format-check typecheck build wheel-smoke validate cli-smoke \
 	agentops-pr agentops-weekly agentops-monthly hooks-smoke mcp-smoke
 
-verify: format-check lint typecheck test validate cli-smoke build
+verify: format-check lint typecheck test validate cli-smoke wheel-smoke
 
 test:
 	$(PYTHON) -m pytest
@@ -24,11 +24,16 @@ typecheck:
 build:
 	$(PYTHON) -m build --no-isolation
 
+wheel-smoke: build
+	$(PYTHON) tools/verification/installed_wheel_smoke.py
+
 validate:
 	$(REPOOS) --format json validate --all
 
 cli-smoke:
 	$(REPOOS) --help
+	$(REPOOS) plan-manifest-bootstrap --help
+	$(REPOOS) authorize-manifest-bootstrap --help
 	$(REPOOS) apply --help
 	$(REPOOS) rollback --help
 	$(REPOOS) transaction --help

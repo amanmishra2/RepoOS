@@ -47,6 +47,8 @@ def test_repoos_manifest_is_valid() -> None:
         ("update-plan", {"schema_version": 1, "unknown": True}),
         ("transaction", {"schema_version": 1, "unknown": True}),
         ("backup-manifest", {"schema_version": 1, "unknown": True}),
+        ("manifest-bootstrap-plan", {"schema_version": 1, "unknown": True}),
+        ("manifest-bootstrap-authorization", {"schema_version": 1, "unknown": True}),
         ("transaction-observation", {"schema_version": 1, "unknown": True}),
     ],
 )

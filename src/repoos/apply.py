@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Callable
+from contextlib import suppress
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,23 @@ from repoos.errors import (
 )
 from repoos.git import inspect_git, is_git_worktree, status_fingerprint, status_paths
 from repoos.locks import GlobalLock, RepositoryLock
+from repoos.manifest_bootstrap import (
+    DESTINATION,
+    OPERATION_KIND,
+    assert_bootstrap_artifact_isolated,
+    consume_manifest_bootstrap_authorization,
+    install_manifest_exclusive,
+    manifest_bootstrap_precondition_error,
+    manifest_bootstrap_precondition_failures,
+    remove_created_manifest_parent_if_safe,
+    reserve_manifest_bootstrap_authorization,
+    validate_bootstrap_manifest_bytes,
+    validate_bootstrap_manifest_file,
+    validate_manifest_bootstrap_authorization,
+    validate_post_install_preservation,
+    validate_restored_preservation,
+    write_rendered_manifest,
+)
 from repoos.ownership import (
     OwnershipMode,
     file_mode,
@@ -416,6 +434,7 @@ def _validate_manual_rollback_state(
         )
 
     all_original = True
+    bootstrap_install = record.get("bootstrap_install")
     for entry in backup_manifest["entries"]:
         target_name = str(entry["target"])
         target = contained_path(repository, target_name)
@@ -439,11 +458,32 @@ def _validate_manual_rollback_state(
                 "Rollback target mode changed unexpectedly.",
                 target=target_name,
             )
+        if (
+            record.get("operation_kind") == OPERATION_KIND
+            and original_hash is None
+            and current_hash == applied_hash
+            and not _matches_bootstrap_install_identity(bootstrap_install, target)
+        ):
+            raise stale_plan(
+                "Rollback refuses a manifest without transaction creation evidence.",
+                target=target_name,
+            )
         if original_hash is None and current_hash is None:
             continue
         if current_hash != original_hash:
             all_original = False
     return all_original
+
+
+def _matches_bootstrap_install_identity(install: Any, target: Path) -> bool:
+    if not isinstance(install, dict) or not install.get("manifest_created"):
+        return False
+    if target.is_symlink() or not target.is_file():
+        return False
+    metadata = target.stat(follow_symlinks=False)
+    return install.get("manifest_device") == int(metadata.st_dev) and install.get(
+        "manifest_inode"
+    ) == int(metadata.st_ino)
 
 
 def _restore_backup(
@@ -452,6 +492,7 @@ def _restore_backup(
     backup_directory: Path,
     repository: Path,
     *,
+    plan: dict[str, Any] | None = None,
     fault: FaultHook | None,
 ) -> int:
     entries = backup_entry_map(backup_manifest)
@@ -471,9 +512,38 @@ def _restore_backup(
                 raise backup_failure("Backup content changed during rollback.", target=target_name)
             _atomic_replace(target, content, int(entry["original_mode"]))
         else:
+            if target.exists():
+                if (
+                    target.is_symlink()
+                    or not target.is_file()
+                    or sha256_file(target) != entry["expected_applied_sha256"]
+                    or file_mode(target) != entry["expected_applied_mode"]
+                ):
+                    raise rollback_failure(
+                        "Rollback refuses to delete an unrelated created-path occupant.",
+                        target=target_name,
+                    )
+                if record.get(
+                    "operation_kind"
+                ) == OPERATION_KIND and not _matches_bootstrap_install_identity(
+                    record.get("bootstrap_install"),
+                    target,
+                ):
+                    raise rollback_failure(
+                        "Rollback lacks transaction creation evidence for the manifest.",
+                        target=target_name,
+                    )
             _remove_created_file(target)
         restored += 1
         _inject(fault, f"rollback_after_restore:{target_name}")
+
+    if record.get("operation_kind") == OPERATION_KIND:
+        if plan is None:
+            raise rollback_failure("Manifest-bootstrap rollback has no approved plan snapshot.")
+        install = record.get("bootstrap_install")
+        if isinstance(install, dict) and install.get("parent_created"):
+            remove_created_manifest_parent_if_safe(plan, repository)
+        _inject(fault, "rollback_after_parent_cleanup")
 
     for entry in backup_manifest["entries"]:
         target_name = str(entry["target"])
@@ -500,6 +570,14 @@ def _restore_backup(
             "Restored repository state does not match the planned pre-change state.",
             remaining_paths=list(status_paths(repository)),
         )
+    if record.get("operation_kind") == OPERATION_KIND:
+        assert plan is not None
+        preservation_failures = validate_restored_preservation(plan, repository)
+        if preservation_failures:
+            raise rollback_failure(
+                "Rollback could not prove target and sibling preservation.",
+                failed_preconditions=preservation_failures,
+            )
     _inject(fault, "rollback_verified")
     return restored
 
@@ -513,6 +591,7 @@ def _automatic_rollback(
 ) -> dict[str, Any]:
     record = store.load(transaction_id)
     backup_directory = Path(str(record["backup_location"]))
+    plan = _read_plan_snapshot(store, transaction_id)
     try:
         backup_manifest = validate_backup(
             backup_directory,
@@ -533,6 +612,7 @@ def _automatic_rollback(
             backup_manifest,
             backup_directory,
             repository,
+            plan=plan,
             fault=fault,
         )
         store.update_rollback(
@@ -822,6 +902,388 @@ def execute_plan(
         repository_lock.release()
 
 
+def _consume_bootstrap_authorization_after_attempt(
+    record: dict[str, Any],
+    transaction_id: str,
+    *,
+    outcome: str,
+) -> None:
+    path = record.get("authorization_path")
+    if not isinstance(path, str):
+        return
+    with suppress(RepoOSError):
+        consume_manifest_bootstrap_authorization(
+            Path(path),
+            transaction_id,
+            outcome=outcome,
+        )
+
+
+def execute_manifest_bootstrap(
+    plan: dict[str, Any],
+    repository: str | Path,
+    manifest_input: str | Path,
+    authorization: str | Path,
+    *,
+    state_directory: Path,
+    recover_stale_lock: bool = False,
+    validation_timeout: int = DEFAULT_VALIDATION_TIMEOUT,
+    fault: FaultHook | None = None,
+    authorization_now: Any = None,
+) -> dict[str, Any]:
+    """Execute exactly one authorized creation of ``.repoos/project.yaml``."""
+
+    target = require_directory(repository)
+    input_path, raw, _manifest = validate_bootstrap_manifest_file(manifest_input)
+    resolved_state = state_directory.expanduser().resolve()
+    git_state = inspect_git(target)
+    assert_bootstrap_artifact_isolated(
+        target,
+        resolved_state,
+        git_state.common_dir,
+        artifact_kind="RepoOS state",
+    )
+    authorization_path, _authorization_value, authorization_sha256 = (
+        validate_manifest_bootstrap_authorization(
+            authorization,
+            plan,
+            now=authorization_now,
+        )
+    )
+    authorization_root = resolved_state / "authorizations"
+    if not authorization_path.is_relative_to(authorization_root):
+        raise RepoOSError(
+            "Authorization must be stored beneath the local RepoOS state directory.",
+            ExitCode.AUTHORIZATION_REQUIRED,
+            "invalid_authorization",
+            {"authorization_root": str(authorization_root)},
+        )
+
+    store = TransactionStore(resolved_state)
+    record = store.create(
+        plan,
+        authorization_digest=authorization_sha256,
+        authorization_path=str(authorization_path),
+    )
+    transaction_id = str(record["transaction_id"])
+    failures = manifest_bootstrap_precondition_failures(
+        plan,
+        target,
+        input_path,
+        state_directory=resolved_state,
+        check_lock=not recover_stale_lock,
+    )
+    if failures:
+        error = manifest_bootstrap_precondition_error(transaction_id, failures)
+        store.mark_failure(
+            transaction_id,
+            classification=error.error_type,
+            message=error.message,
+            failed_precondition=failures[0],
+        )
+        raise error
+    store.transition(transaction_id, "validated")
+
+    try:
+        repository_lock = _acquire_repository_lock(
+            resolved_state,
+            str(git_state.common_dir),
+            str(target),
+            transaction_id,
+            recover_stale_lock=recover_stale_lock,
+        )
+    except RepoOSError as exc:
+        store.mark_failure(
+            transaction_id,
+            classification=exc.error_type,
+            message=exc.message,
+            failed_precondition=f"lock_conflict:{exc.error_type}",
+        )
+        exc.details["transaction_id"] = transaction_id
+        raise
+
+    authorization_reserved = False
+    try:
+        store.transition(transaction_id, "locked")
+        raced_failures = manifest_bootstrap_precondition_failures(
+            plan,
+            target,
+            input_path,
+            state_directory=resolved_state,
+            check_lock=False,
+        )
+        if raced_failures:
+            error = manifest_bootstrap_precondition_error(transaction_id, raced_failures)
+            store.mark_failure(
+                transaction_id,
+                classification=error.error_type,
+                message=error.message,
+                failed_precondition=raced_failures[0],
+            )
+            raise error
+        try:
+            reserve_manifest_bootstrap_authorization(
+                authorization_path,
+                plan,
+                transaction_id,
+                now=authorization_now,
+            )
+            authorization_reserved = True
+            _inject(fault, "manifest_authorization_reserved")
+        except RepoOSError as exc:
+            store.mark_failure(
+                transaction_id,
+                classification=exc.error_type,
+                message=exc.message,
+                failed_precondition="invalid_authorization",
+            )
+            raise
+
+        try:
+            create_backup(
+                store,
+                store.load(transaction_id),
+                plan,
+                target,
+                input_path,
+                fault=fault,
+            )
+        except RepoOSError as exc:
+            store.mark_failure(
+                transaction_id,
+                classification=exc.error_type,
+                message=exc.message,
+                failed_precondition=(
+                    str(exc.details.get("failed_precondition"))
+                    if exc.details.get("failed_precondition")
+                    else None
+                ),
+            )
+            _consume_bootstrap_authorization_after_attempt(
+                store.load(transaction_id),
+                transaction_id,
+                outcome="failed",
+            )
+            exc.details["transaction_id"] = transaction_id
+            raise
+        store.transition(transaction_id, "backed_up")
+
+        try:
+            input_path, raw, _manifest = validate_bootstrap_manifest_file(input_path)
+            if sha256_bytes(raw) != plan["manifest"]["sha256"]:
+                raise stale_plan(
+                    "Manifest input changed before rendering.",
+                    failed_precondition="manifest_input_changed",
+                )
+            rendered_path = write_rendered_manifest(store.directory(transaction_id), raw)
+            rendered = rendered_path.read_bytes()
+            validate_bootstrap_manifest_bytes(rendered, source="<rendered-manifest>")
+            if sha256_bytes(rendered) != plan["manifest"]["sha256"]:
+                raise stale_plan(
+                    "Rendered manifest does not match the approved digest.",
+                    failed_precondition="rendered_manifest_changed",
+                )
+            _inject(fault, "manifest_rendered")
+        except Exception as exc:
+            classification = exc.error_type if isinstance(exc, RepoOSError) else "render_failure"
+            message = exc.message if isinstance(exc, RepoOSError) else "Manifest rendering failed."
+            store.mark_failure(
+                transaction_id,
+                classification=classification,
+                message=message,
+                failed_precondition=(
+                    str(exc.details.get("failed_precondition"))
+                    if isinstance(exc, RepoOSError) and exc.details.get("failed_precondition")
+                    else None
+                ),
+            )
+            if authorization_reserved:
+                _consume_bootstrap_authorization_after_attempt(
+                    store.load(transaction_id),
+                    transaction_id,
+                    outcome="failed",
+                )
+            if isinstance(exc, RepoOSError):
+                exc.details["transaction_id"] = transaction_id
+                raise
+            raise apply_failure(
+                "Manifest rendering failed before target writes.",
+                transaction_id=transaction_id,
+                exception_type=type(exc).__name__,
+            ) from exc
+
+        store.transition(transaction_id, "applying")
+        phase = "manifest_install"
+        install_state = {
+            "parent_created": False,
+            "manifest_created": False,
+        }
+
+        def record_parent_created() -> None:
+            install_state["parent_created"] = True
+            store.record_bootstrap_parent_created(transaction_id)
+
+        def record_manifest_created(metadata: os.stat_result) -> None:
+            install_state["manifest_created"] = True
+            store.record_bootstrap_manifest_created(
+                transaction_id,
+                DESTINATION,
+                str(plan["manifest"]["sha256"]),
+                device=int(metadata.st_dev),
+                inode=int(metadata.st_ino),
+            )
+
+        try:
+            pause = get_pause_status(resolved_state)
+            if pause.paused:
+                raise RepoOSError(
+                    "RepoOS operations were paused before manifest installation.",
+                    ExitCode.PAUSED,
+                    "paused",
+                    {"source": pause.source},
+                )
+            _inject(fault, f"apply_before_write:{DESTINATION}")
+            destination, parent_created = install_manifest_exclusive(
+                target,
+                rendered,
+                parent_expected_absent=plan["parent_directory"]["state"] == "absent",
+                on_parent_created=record_parent_created,
+                on_manifest_created=record_manifest_created,
+                fault=fault,
+            )
+            expected_parent_created = plan["parent_directory"]["state"] == "absent"
+            if parent_created != expected_parent_created:
+                raise stale_plan(
+                    "Manifest parent state changed during installation.",
+                    failed_precondition="parent_directory_changed",
+                )
+            if (
+                destination.is_symlink()
+                or not destination.is_file()
+                or sha256_file(destination) != plan["manifest"]["sha256"]
+                or file_mode(destination) != int(plan["operations"][0]["after_mode"])
+            ):
+                raise apply_failure("Installed manifest does not match its approved bytes or mode.")
+            validate_bootstrap_manifest_file(destination)
+            _inject(fault, f"apply_after_write:{DESTINATION}")
+            store.transition(transaction_id, "applied")
+
+            phase = "validation"
+            owned_failures = _verify_applied(plan, target)
+            if owned_failures:
+                raise apply_failure(
+                    "Installed manifest validation failed.",
+                    failures=owned_failures,
+                )
+            store.transition(transaction_id, "validating")
+            results, validation_ok = _run_validation_commands(
+                plan["validation_commands"],
+                target,
+                timeout_seconds=validation_timeout,
+                fault=fault,
+            )
+            store.set_validation_results(transaction_id, results)
+            if not validation_ok:
+                raise apply_failure("Required repository validation failed.")
+
+            phase = "preservation"
+            preservation_failures = validate_post_install_preservation(plan, target)
+            if preservation_failures:
+                raise apply_failure(
+                    "Target or sibling worktree preservation validation failed.",
+                    failed_precondition=preservation_failures[0],
+                    failures=preservation_failures,
+                )
+            phase = "authorization"
+            consume_manifest_bootstrap_authorization(
+                authorization_path,
+                transaction_id,
+                outcome="completed",
+            )
+            final_record = store.transition(transaction_id, "completed")
+            return {
+                "schema_version": "repoos.manifest-bootstrap-result.v1",
+                "operation_kind": OPERATION_KIND,
+                "transaction_id": transaction_id,
+                "state": final_record["state"],
+                "files_created": 1,
+                "files_edited": 0,
+                "files_deleted": 0,
+                "destination": DESTINATION,
+                "manifest_sha256": plan["manifest"]["sha256"],
+                "authorization": "consumed",
+                "protected_sibling_count": len(plan["sibling_worktrees"]),
+                "validation": "passed",
+                "rollback": "not_required",
+                "commits_performed": 0,
+                "pushes_performed": 0,
+            }
+        except Exception as exc:
+            classification = {
+                "manifest_install": "manifest_install_failure",
+                "validation": "validation_failure",
+                "preservation": "preservation_failure",
+                "authorization": "authorization_consumption_failure",
+            }.get(phase, "manifest_install_failure")
+            message = exc.message if isinstance(exc, RepoOSError) else f"{phase} failed."
+            failed_precondition = (
+                str(exc.details.get("failed_precondition"))
+                if isinstance(exc, RepoOSError) and exc.details.get("failed_precondition")
+                else None
+            )
+            _set_failure(
+                store,
+                transaction_id,
+                classification=classification,
+                message=message,
+                failed_precondition=failed_precondition,
+            )
+            if phase == "manifest_install" and not any(install_state.values()):
+                _consume_bootstrap_authorization_after_attempt(
+                    store.load(transaction_id),
+                    transaction_id,
+                    outcome="failed",
+                )
+                store.transition(transaction_id, "failed")
+                if isinstance(exc, RepoOSError):
+                    exc.details["transaction_id"] = transaction_id
+                    raise
+                raise apply_failure(
+                    "Manifest installation failed before target writes.",
+                    transaction_id=transaction_id,
+                ) from exc
+            _automatic_rollback(
+                store,
+                transaction_id,
+                target,
+                fault=fault,
+            )
+            _consume_bootstrap_authorization_after_attempt(
+                store.load(transaction_id),
+                transaction_id,
+                outcome="rolled_back",
+            )
+            if phase == "validation":
+                raise validation_rolled_back(
+                    "Repository validation failed and automatic rollback succeeded.",
+                    transaction_id=transaction_id,
+                ) from exc
+            if phase == "manifest_install":
+                raise RepoOSError(
+                    "Manifest installation failed and automatic rollback succeeded.",
+                    ExitCode.APPLY_FAILURE,
+                    "manifest_install_failure",
+                    {"transaction_id": transaction_id},
+                ) from exc
+            raise apply_failure(
+                "Manifest bootstrap failed and automatic rollback succeeded.",
+                transaction_id=transaction_id,
+                failure_classification=classification,
+            ) from exc
+    finally:
+        repository_lock.release()
+
+
 def rollback_transaction(
     transaction_id: str,
     *,
@@ -864,13 +1326,23 @@ def rollback_transaction(
     if sha256_bytes(canonical_json_bytes(plan)) != record["plan_sha256"]:
         raise backup_failure("Transaction plan snapshot digest does not match.")
     repository = require_directory(str(record["target_repository_path"]))
-    if not (repository / ".repoos-fixture").is_file():
+    operation_kind = record.get("operation_kind", "fixture_update")
+    if operation_kind == "fixture_update" and not (repository / ".repoos-fixture").is_file():
         raise unsafe_state("Rollback target is not a marked fixture.")
+    if operation_kind not in {"fixture_update", OPERATION_KIND}:
+        raise unsafe_state("Rollback transaction has an unsupported operation kind.")
     if not is_git_worktree(repository):
         raise stale_plan("Rollback target is no longer a Git working tree.")
     git_state = inspect_git(repository)
     if sha256_bytes(str(git_state.common_dir).encode("utf-8")) != plan["git_common_dir_sha256"]:
         raise stale_plan("Rollback target common-Git identity changed.")
+    if operation_kind == OPERATION_KIND:
+        assert_bootstrap_artifact_isolated(
+            repository,
+            state_directory.expanduser().resolve(),
+            git_state.common_dir,
+            artifact_kind="RepoOS rollback state",
+        )
 
     lock = _acquire_repository_lock(
         state_directory,
@@ -891,6 +1363,17 @@ def rollback_transaction(
             backup_manifest,
             repository,
         )
+        if operation_kind == OPERATION_KIND and not already_restored:
+            preservation_failures = [
+                failure
+                for failure in validate_post_install_preservation(plan, repository)
+                if failure != "unexpected_target_status"
+            ]
+            if preservation_failures:
+                raise stale_plan(
+                    "Rollback cannot prove sibling and common-Git preservation.",
+                    failed_preconditions=preservation_failures,
+                )
         if current_record["state"] != "rolling_back":
             store.transition(transaction_id, "rolling_back")
         store.update_rollback(
@@ -909,6 +1392,7 @@ def rollback_transaction(
                     backup_manifest,
                     backup_directory,
                     repository,
+                    plan=plan,
                     fault=fault,
                 )
             except Exception as exc:
@@ -930,6 +1414,24 @@ def rollback_transaction(
                         "checkout, or stash."
                     ),
                 ) from exc
+        if already_restored and operation_kind == OPERATION_KIND:
+            install = current_record.get("bootstrap_install")
+            if isinstance(install, dict) and install.get("parent_created"):
+                remove_created_manifest_parent_if_safe(plan, repository)
+            preservation_failures = validate_restored_preservation(plan, repository)
+            if preservation_failures:
+                store.update_rollback(
+                    transaction_id,
+                    state="failed",
+                    completed_at=isoformat(utc_now()),
+                    failure_classification="preservation_failure",
+                )
+                store.transition(transaction_id, "rollback_failed")
+                raise rollback_failure(
+                    "Manual rollback could not prove restored worktree preservation.",
+                    transaction_id=transaction_id,
+                    failed_preconditions=preservation_failures,
+                )
         store.update_rollback(
             transaction_id,
             state="succeeded",
@@ -938,6 +1440,15 @@ def rollback_transaction(
             failure_classification=None,
         )
         final = store.transition(transaction_id, "rolled_back")
+        if operation_kind == OPERATION_KIND and isinstance(
+            current_record.get("authorization_path"), str
+        ):
+            with suppress(RepoOSError):
+                consume_manifest_bootstrap_authorization(
+                    Path(str(current_record["authorization_path"])),
+                    transaction_id,
+                    outcome="rolled_back",
+                )
         return {
             "schema_version": "repoos.rollback-result.v1",
             "transaction_id": transaction_id,

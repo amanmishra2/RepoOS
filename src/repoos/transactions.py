@@ -129,6 +129,8 @@ class TransactionStore:
         plan: dict[str, Any],
         *,
         safety_overrides: tuple[str, ...] = (),
+        authorization_digest: str | None = None,
+        authorization_path: str | None = None,
         now: datetime | None = None,
         transaction_id: str | None = None,
     ) -> dict[str, Any]:
@@ -168,6 +170,7 @@ class TransactionStore:
             )
 
         safety = plan["safety"]
+        operation_kind = str(plan.get("operation_kind", "fixture_update"))
         record: dict[str, Any] = {
             "schema_version": 1,
             "transaction_id": identifier,
@@ -180,6 +183,14 @@ class TransactionStore:
             "manifest_version": plan["manifest"]["version"],
             "manifest_sha256": plan["manifest"]["sha256"],
             "update_plan_version": plan["plan_version"],
+            "operation_kind": operation_kind,
+            "git_common_dir_sha256": plan["git_common_dir_sha256"],
+            "target_branch_planned": plan.get("target_branch"),
+            "authorization_sha256": authorization_digest,
+            "authorization_path": authorization_path,
+            "protected_worktrees": plan.get("sibling_worktrees", []),
+            "common_git_state": plan.get("common_git_state"),
+            "parent_directory": plan.get("parent_directory"),
             "plan_id": plan["plan_id"],
             "plan_sha256": plan_sha256(plan),
             "components": plan["components"],
@@ -207,6 +218,13 @@ class TransactionStore:
             },
             "duration_ms": None,
         }
+        if operation_kind == "manifest_bootstrap":
+            record["bootstrap_install"] = {
+                "parent_created": False,
+                "manifest_created": False,
+                "manifest_device": None,
+                "manifest_inode": None,
+            }
         try:
             _write_bytes_atomic(directory / "plan.json", canonical_json_bytes(plan))
             write_json_atomic(directory / "transaction.json", record, schema_name="transaction")
@@ -310,6 +328,54 @@ class TransactionStore:
             for item in record["affected_files"]:
                 if item["target"] == target:
                     item["applied_sha256"] = applied_sha256
+                    return
+            raise invalid_input("Applied target is not in transaction.", target=target)
+
+        return self.update(transaction_id, updater)
+
+    def record_bootstrap_parent_created(self, transaction_id: str) -> dict[str, Any]:
+        def updater(record: dict[str, Any]) -> None:
+            install = record.get("bootstrap_install")
+            if record.get("operation_kind") != "manifest_bootstrap" or not isinstance(
+                install, dict
+            ):
+                raise invalid_input(
+                    "Transaction does not support bootstrap install evidence.",
+                    transaction_id=transaction_id,
+                )
+            install["parent_created"] = True
+
+        return self.update(transaction_id, updater)
+
+    def record_bootstrap_manifest_created(
+        self,
+        transaction_id: str,
+        target: str,
+        applied_sha256: str,
+        *,
+        device: int,
+        inode: int,
+    ) -> dict[str, Any]:
+        def updater(record: dict[str, Any]) -> None:
+            install = record.get("bootstrap_install")
+            if record.get("operation_kind") != "manifest_bootstrap" or not isinstance(
+                install, dict
+            ):
+                raise invalid_input(
+                    "Transaction does not support bootstrap install evidence.",
+                    transaction_id=transaction_id,
+                )
+            if install.get("manifest_created"):
+                raise invalid_input(
+                    "Bootstrap manifest creation is already recorded.",
+                    transaction_id=transaction_id,
+                )
+            for item in record["affected_files"]:
+                if item["target"] == target:
+                    item["applied_sha256"] = applied_sha256
+                    install["manifest_created"] = True
+                    install["manifest_device"] = device
+                    install["manifest_inode"] = inode
                     return
             raise invalid_input("Applied target is not in transaction.", target=target)
 

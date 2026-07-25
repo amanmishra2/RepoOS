@@ -3,7 +3,7 @@
 ## User-global
 
 Only universal preferences and explicitly approved reusable Codex assets belong here. RepoOS
-`0.2.0` does not install or change them.
+`0.3.0` does not install or change them.
 
 ## RepoOS-owned
 

@@ -2,15 +2,20 @@
 
 from __future__ import annotations
 
+import json
 import os
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-from repoos.errors import environment_error, invalid_input
+from repoos.errors import RepoOSError, environment_error, invalid_input, unsafe_state
 from repoos.paths import canonical_path, require_directory, sha256_bytes
 
 _READ_ONLY_COMMANDS = {
+    "check-ignore",
+    "for-each-ref",
     "rev-parse",
     "status",
     "remote",
@@ -243,3 +248,280 @@ def status_paths(repository: str | Path) -> tuple[str, ...]:
             if related:
                 paths.append(related)
     return tuple(sorted(set(paths)))
+
+
+def path_is_ignored(repository: str | Path, relative_path: str) -> bool:
+    """Check one explicit path against Git ignore rules without touching the index."""
+
+    output = run_git(
+        repository,
+        ["check-ignore", "--no-index", "--", relative_path],
+        allow_failure=True,
+    )
+    return bool(output.strip())
+
+
+_OBJECT_ID = re.compile(r"^[a-f0-9]{40,64}$")
+
+
+@dataclass(frozen=True, slots=True)
+class _WorktreeRecord:
+    path: Path
+    head: str
+    branch: str | None
+    detached: bool
+    locked: bool
+    prunable: bool
+    bare: bool
+
+
+def _canonical_digest(value: Any) -> str:
+    payload = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).encode("utf-8")
+    return sha256_bytes(payload)
+
+
+def _metadata_file_digest(path: Path) -> str:
+    if not path.exists():
+        return sha256_bytes(b"missing")
+    if path.is_symlink() or not path.is_file():
+        raise unsafe_state(
+            "Git metadata is not a regular file.",
+            metadata_kind=path.name,
+        )
+    return sha256_bytes(path.read_bytes())
+
+
+def _resolve_git_dir(worktree: Path) -> Path:
+    value = run_git(worktree, ["rev-parse", "--git-dir"]).strip()
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        candidate = worktree / candidate
+    return canonical_path(candidate, must_exist=True)
+
+
+def _parse_worktree_records(output: str) -> list[_WorktreeRecord]:
+    records: list[_WorktreeRecord] = []
+    fields: dict[str, str | bool] = {}
+
+    def finish() -> None:
+        nonlocal fields
+        if not fields:
+            return
+        allowed = {"worktree", "HEAD", "branch", "detached", "locked", "prunable", "bare"}
+        unknown = sorted(set(fields) - allowed)
+        if unknown:
+            raise unsafe_state(
+                "Git worktree metadata contains unsupported fields.",
+                field_count=len(unknown),
+            )
+        path_text = fields.get("worktree")
+        head = fields.get("HEAD")
+        branch = fields.get("branch")
+        detached = fields.get("detached") is True
+        bare = fields.get("bare") is True
+        if not isinstance(path_text, str) or not path_text:
+            raise unsafe_state("Git worktree metadata has no usable path.")
+        if bare:
+            head_text = str(head or "0" * 40)
+        elif not isinstance(head, str) or _OBJECT_ID.fullmatch(head) is None:
+            raise unsafe_state("Git worktree metadata has no valid HEAD.")
+        else:
+            head_text = head
+        if bool(branch) == detached and not bare:
+            raise unsafe_state("Git worktree branch metadata is ambiguous.")
+        records.append(
+            _WorktreeRecord(
+                path=Path(path_text).expanduser(),
+                head=head_text,
+                branch=(
+                    str(branch).removeprefix("refs/heads/") if isinstance(branch, str) else None
+                ),
+                detached=detached,
+                locked=fields.get("locked") is not None,
+                prunable=fields.get("prunable") is not None,
+                bare=bare,
+            )
+        )
+        fields = {}
+
+    for field in output.split("\0"):
+        if not field:
+            finish()
+            continue
+        key, separator, value = field.partition(" ")
+        if key in fields:
+            raise unsafe_state("Git worktree metadata repeats a field.", field=key)
+        fields[key] = value if separator else True
+    finish()
+    if not records:
+        raise unsafe_state("Git returned no worktree registrations.")
+    return records
+
+
+def _transient_git_lock_count(common_dir: Path, git_directories: tuple[Path, ...]) -> int:
+    roots = tuple(dict.fromkeys((common_dir, *git_directories)))
+    count = 0
+    visited = 0
+    for root in roots:
+        for directory_text, directory_names, file_names in os.walk(root, followlinks=False):
+            directory = Path(directory_text)
+            directory_names[:] = [
+                name for name in directory_names if not (directory / name).is_symlink()
+            ]
+            visited += len(directory_names) + len(file_names)
+            if visited > 100_000:
+                raise unsafe_state("Git metadata exceeds the bounded lock inventory.")
+            count += sum(name.endswith(".lock") for name in file_names)
+    return count
+
+
+def inspect_worktree_topology(repository: str | Path) -> dict[str, Any]:
+    """Return content-free target, sibling, and common-Git preservation fingerprints.
+
+    Sibling file bodies are never opened. Git status output is reduced immediately to
+    counts and a digest; sibling paths and untracked names are represented only by hashes.
+    """
+
+    target = require_directory(repository)
+    target_state = inspect_git(target)
+    raw_registration = run_git(
+        target,
+        ["worktree", "list", "--porcelain", "-z"],
+    )
+    try:
+        registrations = _parse_worktree_records(raw_registration)
+    except RepoOSError:
+        raise
+    except Exception as exc:
+        raise unsafe_state(
+            "Git worktree metadata could not be parsed.",
+            exception_type=type(exc).__name__,
+        ) from exc
+
+    summaries: list[dict[str, Any]] = []
+    git_directories: list[Path] = []
+    target_summary: dict[str, Any] | None = None
+    seen_ids: set[str] = set()
+    for registration in registrations:
+        path_id = sha256_bytes(str(registration.path.resolve(strict=False)).encode("utf-8"))
+        if registration.locked:
+            raise unsafe_state(
+                "A registered worktree is locked.",
+                worktree_id=path_id,
+                ambiguity="locked_worktree",
+            )
+        if registration.prunable:
+            raise unsafe_state(
+                "A registered worktree is prunable or missing.",
+                worktree_id=path_id,
+                ambiguity="prunable_worktree",
+            )
+        if registration.bare:
+            raise unsafe_state(
+                "Bare worktree registrations are unsupported.",
+                worktree_id=path_id,
+                ambiguity="bare_worktree",
+            )
+        try:
+            path = canonical_path(registration.path, must_exist=True)
+            state = inspect_git(path)
+            git_dir = _resolve_git_dir(path)
+        except RepoOSError as exc:
+            raise unsafe_state(
+                "A registered worktree is unreadable or malformed.",
+                worktree_id=path_id,
+                ambiguity=exc.error_type,
+            ) from exc
+        if state.root != path or state.common_dir != target_state.common_dir:
+            raise unsafe_state(
+                "A registered worktree has an ambiguous Git identity.",
+                worktree_id=path_id,
+                ambiguity="common_git_mismatch",
+            )
+        if state.head != registration.head or state.branch != registration.branch:
+            raise unsafe_state(
+                "A registered worktree changed during inspection.",
+                worktree_id=path_id,
+                ambiguity="registration_state_mismatch",
+            )
+        canonical_id = sha256_bytes(str(path).encode("utf-8"))
+        if canonical_id in seen_ids:
+            raise unsafe_state(
+                "Git worktree metadata resolves to a duplicate path.",
+                worktree_id=canonical_id,
+                ambiguity="duplicate_worktree",
+            )
+        seen_ids.add(canonical_id)
+        git_directories.append(git_dir)
+        is_target = path == target
+        summary = {
+            "worktree_id": canonical_id,
+            "classification": (
+                ("target_clean" if state.clean else "target_dirty")
+                if is_target
+                else ("protected_clean" if state.clean else "protected_dirty")
+            ),
+            "head": state.head,
+            "branch_sha256": sha256_bytes((state.branch or "detached").encode("utf-8")),
+            "status_fingerprint": status_fingerprint(path),
+            "tracked_changes": state.tracked_changes,
+            "untracked_entries": state.untracked_entries,
+            "clean": state.clean,
+            "locked": False,
+            "prunable": False,
+            "git_dir_sha256": sha256_bytes(str(git_dir).encode("utf-8")),
+            "head_metadata_sha256": _metadata_file_digest(git_dir / "HEAD"),
+            "index_sha256": _metadata_file_digest(git_dir / "index"),
+        }
+        if is_target:
+            target_summary = summary
+        else:
+            summaries.append(summary)
+
+    if target_summary is None:
+        raise unsafe_state(
+            "The explicit target is not present in the common-Git worktree registry.",
+            ambiguity="target_registration_missing",
+        )
+
+    common_dir = target_state.common_dir
+    lock_count = _transient_git_lock_count(common_dir, tuple(git_directories))
+    common_git = {
+        "common_dir_sha256": sha256_bytes(str(common_dir).encode("utf-8")),
+        "worktree_registration_sha256": sha256_bytes(raw_registration.encode("utf-8")),
+        "refs_sha256": sha256_bytes(
+            run_git(
+                target,
+                ["for-each-ref", "--format=%(refname)%00%(objectname)"],
+            ).encode("utf-8")
+        ),
+        "config_sha256": _metadata_file_digest(common_dir / "config"),
+        "head_sha256": _metadata_file_digest(common_dir / "HEAD"),
+        "transient_lock_count": lock_count,
+        "worktree_count": len(registrations),
+        "worktree_summaries_sha256": _canonical_digest(
+            sorted(
+                (
+                    {
+                        "worktree_id": item["worktree_id"],
+                        "git_dir_sha256": item["git_dir_sha256"],
+                        "head_metadata_sha256": item["head_metadata_sha256"],
+                        "index_sha256": item["index_sha256"],
+                    }
+                    for item in (target_summary, *summaries)
+                ),
+                key=lambda item: str(item["worktree_id"]),
+            )
+        ),
+    }
+    summaries.sort(key=lambda item: str(item["worktree_id"]))
+    return {
+        "target": target_summary,
+        "siblings": summaries,
+        "common_git": common_git,
+    }

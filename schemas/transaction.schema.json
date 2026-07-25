@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://repoos.dev/schemas/transaction.schema.json",
-  "title": "RepoOS fixture transaction record",
+  "title": "RepoOS transaction record",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -43,7 +43,36 @@
     "target_status_fingerprint": {"$ref": "#/$defs/hash"},
     "manifest_version": {"type": "integer", "minimum": 1},
     "manifest_sha256": {"$ref": "#/$defs/hash"},
-    "update_plan_version": {"const": "repoos.update-plan.v2"},
+    "update_plan_version": {
+      "enum": ["repoos.update-plan.v2", "repoos.manifest-bootstrap-plan.v1"]
+    },
+    "operation_kind": {
+      "enum": ["fixture_update", "manifest_bootstrap"]
+    },
+    "git_common_dir_sha256": {"$ref": "#/$defs/hash"},
+    "target_branch_planned": {
+      "oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]
+    },
+    "authorization_sha256": {"$ref": "#/$defs/nullable_hash"},
+    "authorization_path": {
+      "oneOf": [{"type": "string", "minLength": 1}, {"type": "null"}]
+    },
+    "protected_worktrees": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "common_git_state": {
+      "oneOf": [{"type": "object"}, {"type": "null"}]
+    },
+    "parent_directory": {
+      "oneOf": [{"type": "object"}, {"type": "null"}]
+    },
+    "bootstrap_install": {
+      "oneOf": [
+        {"$ref": "#/$defs/bootstrap_install"},
+        {"type": "null"}
+      ]
+    },
     "plan_id": {"type": "string", "pattern": "^plan-[a-f0-9]{64}$"},
     "plan_sha256": {"$ref": "#/$defs/hash"},
     "components": {
@@ -92,6 +121,34 @@
       "oneOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"operation_kind": {"const": "manifest_bootstrap"}},
+        "required": ["operation_kind"]
+      },
+      "then": {
+        "required": [
+          "git_common_dir_sha256",
+          "target_branch_planned",
+          "authorization_sha256",
+          "authorization_path",
+          "protected_worktrees",
+          "common_git_state",
+          "parent_directory",
+          "bootstrap_install"
+        ],
+        "properties": {
+          "target_branch_planned": {"type": "string", "minLength": 1},
+          "authorization_sha256": {"$ref": "#/$defs/hash"},
+          "authorization_path": {"type": "string", "minLength": 1},
+          "common_git_state": {"type": "object"},
+          "parent_directory": {"type": "object"},
+          "bootstrap_install": {"$ref": "#/$defs/bootstrap_install"}
+        }
+      }
+    }
+  ],
   "$defs": {
     "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "nullable_hash": {
@@ -124,6 +181,7 @@
     "ownership": {
       "enum": [
         "managed_file",
+        "adoption_manifest",
         "managed_section",
         "generated_file",
         "repository_owned",
@@ -166,6 +224,46 @@
           ]
         }
       }
+    },
+    "bootstrap_install": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parent_created",
+        "manifest_created",
+        "manifest_device",
+        "manifest_inode"
+      ],
+      "properties": {
+        "parent_created": {"type": "boolean"},
+        "manifest_created": {"type": "boolean"},
+        "manifest_device": {
+          "oneOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]
+        },
+        "manifest_inode": {
+          "oneOf": [{"type": "integer", "minimum": 0}, {"type": "null"}]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"manifest_created": {"const": true}},
+            "required": ["manifest_created"]
+          },
+          "then": {
+            "properties": {
+              "manifest_device": {"type": "integer", "minimum": 0},
+              "manifest_inode": {"type": "integer", "minimum": 0}
+            }
+          },
+          "else": {
+            "properties": {
+              "manifest_device": {"type": "null"},
+              "manifest_inode": {"type": "null"}
+            }
+          }
+        }
+      ]
     },
     "command": {
       "type": "object",

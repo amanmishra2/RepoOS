@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://repoos.dev/schemas/backup-manifest.schema.json",
-  "title": "RepoOS atomic fixture backup manifest",
+  "title": "RepoOS atomic transaction backup manifest",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -51,8 +51,45 @@
         }
       }
     },
-    "integrity_sha256": {"$ref": "#/$defs/hash"}
+    "integrity_sha256": {"$ref": "#/$defs/hash"},
+    "operation_kind": {
+      "enum": ["fixture_update", "manifest_bootstrap"]
+    },
+    "authorization_sha256": {
+      "oneOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]
+    },
+    "parent_directory": {
+      "oneOf": [{"type": "object"}, {"type": "null"}]
+    },
+    "protected_worktrees": {
+      "type": "array",
+      "items": {"type": "object"}
+    },
+    "common_git_state": {
+      "oneOf": [{"type": "object"}, {"type": "null"}]
+    }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"operation_kind": {"const": "manifest_bootstrap"}},
+        "required": ["operation_kind"]
+      },
+      "then": {
+        "required": [
+          "authorization_sha256",
+          "parent_directory",
+          "protected_worktrees",
+          "common_git_state"
+        ],
+        "properties": {
+          "authorization_sha256": {"$ref": "#/$defs/hash"},
+          "parent_directory": {"type": "object"},
+          "common_git_state": {"type": "object"}
+        }
+      }
+    }
+  ],
   "$defs": {
     "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
     "portable_path": {
@@ -79,7 +116,12 @@
         "target": {"$ref": "#/$defs/portable_path"},
         "action": {"enum": ["create", "replace", "section_update", "delete"]},
         "ownership": {
-          "enum": ["managed_file", "managed_section", "generated_file"]
+          "enum": [
+            "adoption_manifest",
+            "managed_file",
+            "managed_section",
+            "generated_file"
+          ]
         },
         "existed": {"type": "boolean"},
         "backup_path": {

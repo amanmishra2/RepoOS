@@ -27,6 +27,9 @@
     "project_family": {
       "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
     },
+    "sensitivity_classification": {
+      "enum": ["public", "internal", "confidential", "personal_data", "restricted"]
+    },
     "additional_overlays": {
       "type": "array",
       "items": {"$ref": "#/$defs/id"},

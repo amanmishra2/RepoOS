@@ -13,6 +13,7 @@ from repoos.paths import sha256_bytes
 
 
 class OwnershipMode(StrEnum):
+    ADOPTION_MANIFEST = "adoption_manifest"
     MANAGED_FILE = "managed_file"
     MANAGED_SECTION = "managed_section"
     GENERATED_FILE = "generated_file"
@@ -23,6 +24,7 @@ class OwnershipMode(StrEnum):
 
 
 WRITABLE_OWNERSHIP = {
+    OwnershipMode.ADOPTION_MANIFEST,
     OwnershipMode.MANAGED_FILE,
     OwnershipMode.MANAGED_SECTION,
     OwnershipMode.GENERATED_FILE,

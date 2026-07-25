@@ -28,7 +28,12 @@
     "component_types": {
       "type": "array",
       "items": {
-        "enum": ["managed_file", "managed_section", "generated_file"]
+        "enum": [
+          "adoption_manifest",
+          "managed_file",
+          "managed_section",
+          "generated_file"
+        ]
       },
       "uniqueItems": true
     },

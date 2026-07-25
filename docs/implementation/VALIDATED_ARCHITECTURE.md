@@ -1,7 +1,8 @@
 # Validated RepoOS architecture
 
-Status: authoritative Phase 2 implementation plan
+Status: authoritative Phase 2 architecture plus guarded-bootstrap extension
 Validated: 2026-07-23
+Updated: 2026-07-25
 
 ## Outcome
 
@@ -20,13 +21,14 @@ Unknown ownership always resolves to repository-owned.
 
 ```mermaid
 flowchart LR
-  U["Human approval"] --> R["RepoOS plan"]
+  R["RepoOS plan"] --> U["Exact local authorization"]
   R --> F["Neutral fixtures"]
-  R --> C["Candidate repository"]
+  U --> C["One-file candidate worktree"]
   C --> V["Repository-owned validation"]
   V --> P["Human-reviewed PR"]
   R -. "read-only evidence" .-> L["Learning ledger"]
-  L -. "proposal only" .-> U
+  L -. "proposal only" .-> H["Human decision"]
+  H --> U
 ```
 
 - Discovery, inventory, validation, diff, audit, and reporting are read-only.
@@ -50,19 +52,44 @@ Redaction is part of the evidence pipeline, not a post-publication cleanup step.
 - JSONL may be used for append-only local ingestion later.
 - Caches, locks, and operation journals live outside managed repositories by default.
 - A repository declares desired adoption in `.repoos/project.yaml`.
-- Update-plan schema v2 is immutable by canonical digest and binds the exact fixture path, common
-  Git identity, HEAD, status, source root/files, target files, manifest, components, ownership,
-  validation commands, and safety measurements.
+- Update-plan schema v2 remains immutable by canonical digest and binds the exact fixture path,
+  common Git identity, HEAD, status, source root/files, target files, manifest, components,
+  ownership, validation commands, and configurable fixture safety measurements.
+- Manifest-bootstrap plan v1 is a separate immutable contract. It binds one real target worktree,
+  common Git identity, branch/HEAD/cleanliness, content-free sibling summaries, common-Git
+  metadata, exact manifest bytes, absent destination/parent state, fixed limits, validation, and
+  exact authorization fields.
+- Manifest-bootstrap authorization v1 is local, expiring, one-use evidence bound to the exact
+  operation, target worktree/common Git directory, branch, HEAD, plan, manifest, and destination.
 - Transaction, backup, and public-safe observation schemas version operation state independently
   from the package. An adoption/release lock remains deferred until release artifact integrity and
   long-term rollback retention are implemented.
 
 ## Transaction boundary
 
-Executable mutation in `0.2.0` is restricted to temporary or otherwise disposable Git repositories
-containing a regular `.repoos-fixture` marker and a manifest that explicitly permits apply. A real
-repository cannot become eligible merely by adding the marker; real adoption remains a separately
-authorized ROS-011 workflow.
+### Gate reconciliation
+
+Before `0.3.0`, real repositories were refused because `build_update_plan` required a regular
+`.repoos-fixture` marker. `precondition_failures` repeated that marker check during dry run and
+apply, and fixture rollback checked it again. Thus enforcement existed at planning, application,
+and rollback; fixture classification was marker plus a schema-valid manifest permitting apply.
+
+Update-plan v2 had exact roots/common-Git/HEAD/status/manifest/operations but no operation kind,
+target branch, sibling preservation model, authorization binding, or explicit absent-manifest/
+parent contract. RepoOS therefore preserves it unchanged. The executable plan version now
+distinguishes target paths: `repoos.update-plan.v2` maps to `fixture_update`, while
+`repoos.manifest-bootstrap-plan.v1` requires `operation_kind: manifest_bootstrap`. Transaction and
+backup records carry that operation kind. No generic real-repository target flag exists.
+
+RepoOS `0.3.0` has two disjoint executable paths:
+
+1. update-plan v2 may mutate only a marked disposable fixture whose manifest permits apply;
+2. `manifest_bootstrap` may create only an absent `.repoos/project.yaml` in one clean real
+   worktree when an exact one-use authorization is valid.
+
+Every other real-repository operation is refused. A fixture marker does not authorize onboarding,
+and a bootstrap receipt does not authorize overlays, component updates, commit, push, GitHub, or a
+second transaction.
 
 The deterministic state path is:
 
@@ -83,23 +110,30 @@ Stale or malformed locks are never removed implicitly; an explicit recovery flag
 prior lock record before acquisition. A short-lived global lock serializes state-wide stale-lock
 recovery without preventing ordinary operations on different fixtures.
 
-Before the first target write, RepoOS creates and validates an atomically finalized backup beneath
-the configured state directory. It contains the approved plan and manifest snapshots, transaction
-metadata, target HEAD/status evidence, and only the original bytes/modes of paths in the plan.
-Every snapshot and stored original is digest checked; apply also rebuilds the operation and safety
-measurements from current source/target bytes rather than trusting recorded totals.
-Validation failure automatically restores in reverse order. Manual rollback is backup-integrity
-checked, lock protected, drift aware, and idempotent. `rollback_failed` is terminal to prevent an
-uncontrolled retry loop.
+Before the first target write, RepoOS creates and validates an atomically finalized
+operation-specific backup beneath local state. Fixture backups store only original bytes/modes of
+approved paths. Bootstrap backups record destination absence, parent state, target Git state,
+plan/authorization/manifest digests, and protected sibling/common-Git summaries.
 
-Safety limits are part of the approved plan: files changed/created/deleted, bytes, lines, percentage
-of repository files, allowed prefixes, forbidden patterns, and managed-section count. An exceeded
-limit blocks before backup or target writes unless the exact named override is explicit and
-recorded in the transaction.
+Bootstrap renders and validates outside the destination, atomically installs without overwrite,
+validates installed bytes/mode/schema, runs bounded no-shell repository commands, and proves
+target/sibling/common-Git preservation. The common Git lock serializes sibling worktrees, but only
+the explicit target is writable. Dirty siblings are classified as protected using hashes/counts;
+file bodies and untracked names are not persisted. Locked, prunable, malformed, duplicate, or
+drifting registrations fail closed.
+
+Validation failure automatically restores transaction-owned state. Bootstrap rollback removes
+the created manifest and only a transaction-created parent that remains empty. Manual rollback is
+integrity checked, lock protected, drift aware, idempotent, and never uses Git cleanup.
+`rollback_failed` is terminal.
+
+Fixture safety limits remain configurable and may have exact recorded overrides. Bootstrap limits
+are fixed: one create, zero edits/deletes, exact destination, 64-KiB YAML bound, mode `0644`, no
+symlink/traversal/submodule/bare/detached/dirty target, and no generic force or override.
 
 ## Ownership model
 
-Initial support:
+Executable ownership:
 
 - fully managed files;
 - generated files;
@@ -107,12 +141,16 @@ Initial support:
 - repository-owned extensions;
 - explicit local overrides;
 - excluded files.
+- one `adoption_manifest` creation for the absent real-worktree manifest.
 
-Managed sections are supported only by the `0.2.0` fixture engine for UTF-8 text, one operation per
+Managed sections are supported only by the fixture engine for UTF-8 text, one operation per
 file, and exact unique whole-line start/end markers. Missing, duplicate, reversed, nested, or
 overlapping boundaries fail closed. The plan separately binds the section and outside-byte hashes;
 the renderer preserves marker lines, outside bytes, file mode, and existing LF/CRLF convention.
 TOML, JSON, YAML, binary files, and real repositories are not eligible for section management.
+
+The bootstrap manifest becomes repository-owned desired state. Its managed/generated/extension
+lists must be empty, so first-time governance does not transfer ownership of another path.
 
 ## Minimum viable implementation
 
@@ -120,14 +158,16 @@ The current local implementation includes:
 
 - explicit version and package metadata;
 - public-safe project registry plus schema;
-- manifest, observation, candidate, adoption, and update-plan schemas;
+- manifest, observation, candidate, adoption, update-plan, manifest-bootstrap-plan,
+  manifest-bootstrap-authorization, transaction, backup, and public-safe outcome schemas;
 - deterministic CLI help, discovery, inventory, status, doctor, validation, diff, audit, update checking, planning, dry-run apply, and reporting;
-- path containment, redaction, Git safety, pause, plan v2, process-visible locks, transaction
-  records, atomic backups/writes, bounded validation, automatic restoration, and manual rollback
-  exercised only on neutral fixtures;
+- path containment, redaction, Git/worktree safety, pause, update-plan v2, manifest-bootstrap plan
+  v1, exact local authorization, process-visible locks, transaction records, atomic
+  backups/writes, bounded validation, automatic restoration, and manual rollback;
 - repaired RepoOS-local Codex surfaces;
 - GitHub-hosted read-only CI pinned to full SHAs;
 - neutral unit, integration, schema, security, and CLI fixtures;
+- synthetic real-repository/multi-worktree bootstrap fixtures and installed-wheel workflow proof;
 - Git-tracked learning directories and recurring read-only workflow specifications.
 
 ## Explicitly deferred
@@ -140,9 +180,11 @@ The current local implementation includes:
 - AI semantic review and automatic promotion;
 - SQLite/service/API/dashboard/event bus/vector database;
 - broad portfolio rollout;
-- downstream canary writes until explicit confirmation.
+- downstream canary writes until a separate run revalidates and explicitly approves the exact
+  isolated target/plan.
 - file deletion, force rollback, multi-section files, structured-file section management, and
   multi-repository transactions.
+- every real-repository mutation other than first-time manifest creation.
 
 ## Authority
 

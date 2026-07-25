@@ -90,6 +90,17 @@ def create_backup(
             "working_tree_clean": git_state.clean,
             "status_paths": list(status_paths(repository)),
         }
+        if record.get("operation_kind") == "manifest_bootstrap":
+            target_state.update(
+                {
+                    "operation_kind": "manifest_bootstrap",
+                    "target_branch": record.get("target_branch_planned"),
+                    "authorization_sha256": record.get("authorization_sha256"),
+                    "parent_directory": record.get("parent_directory"),
+                    "protected_worktrees": record.get("protected_worktrees", []),
+                    "common_git_state": record.get("common_git_state"),
+                }
+            )
         write_json_atomic(temporary / "target-state.json", target_state)
         target_state_bytes = (temporary / "target-state.json").read_bytes()
 
@@ -114,7 +125,7 @@ def create_backup(
                 target = contained_path(repository, target_name)
             except RepoOSError as exc:
                 raise _failure(
-                    "Backup target is outside the fixture.",
+                    "Backup target is outside the transaction repository.",
                     target=target_name,
                     error_type=exc.error_type,
                 ) from exc
@@ -197,6 +208,11 @@ def create_backup(
                 "policy": "manual",
                 "preserve_until": None,
             },
+            "operation_kind": record.get("operation_kind", "fixture_update"),
+            "authorization_sha256": record.get("authorization_sha256"),
+            "parent_directory": record.get("parent_directory"),
+            "protected_worktrees": record.get("protected_worktrees", []),
+            "common_git_state": record.get("common_git_state"),
         }
         manifest["integrity_sha256"] = _manifest_integrity(manifest)
         write_json_atomic(
@@ -289,6 +305,7 @@ def validate_backup(
     if sha256_bytes(target_state_path.read_bytes()) != value["target_state_sha256"]:
         raise _failure("Backup target-state snapshot digest does not match.")
     try:
+        plan_snapshot = json.loads(plan_path.read_text(encoding="utf-8"))
         transaction_snapshot = json.loads(transaction_path.read_text(encoding="utf-8"))
         target_state_snapshot = json.loads(target_state_path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -296,6 +313,15 @@ def validate_backup(
             "Backup metadata snapshot could not be parsed.",
             exception_type=type(exc).__name__,
         ) from exc
+    if not isinstance(plan_snapshot, dict):
+        raise _failure("Backup plan snapshot is invalid.")
+    plan_schema = (
+        "manifest-bootstrap-plan"
+        if plan_snapshot.get("plan_version") == "repoos.manifest-bootstrap-plan.v1"
+        else "update-plan"
+    )
+    if validate_instance(plan_snapshot, plan_schema, source=str(plan_path)):
+        raise _failure("Backup plan snapshot is invalid.")
     if not isinstance(transaction_snapshot, dict) or validate_instance(
         transaction_snapshot,
         "transaction",
@@ -308,6 +334,17 @@ def validate_backup(
         "working_tree_clean": True,
         "status_paths": [],
     }
+    if value.get("operation_kind") == "manifest_bootstrap":
+        expected_target_state.update(
+            {
+                "operation_kind": "manifest_bootstrap",
+                "target_branch": transaction_snapshot.get("target_branch_planned"),
+                "authorization_sha256": value.get("authorization_sha256"),
+                "parent_directory": value.get("parent_directory"),
+                "protected_worktrees": value.get("protected_worktrees", []),
+                "common_git_state": value.get("common_git_state"),
+            }
+        )
     if target_state_snapshot != expected_target_state:
         raise _failure("Backup target-state snapshot is invalid.")
 
@@ -347,6 +384,34 @@ def validate_backup(
     if value["restore_order"] != list(reversed(targets)):
         raise _failure("Backup restore order is not the reverse apply order.")
 
+    if value.get("operation_kind") == "manifest_bootstrap":
+        preservation_contract = {
+            "parent_directory": plan_snapshot.get("parent_directory"),
+            "protected_worktrees": plan_snapshot.get("sibling_worktrees", []),
+            "common_git_state": plan_snapshot.get("common_git_state"),
+        }
+        if any(value.get(field) != expected for field, expected in preservation_contract.items()):
+            raise _failure("Backup preservation evidence does not match the approved plan.")
+        operations = plan_snapshot.get("operations")
+        if not isinstance(operations, list) or len(operations) != 1 or len(value["entries"]) != 1:
+            raise _failure("Bootstrap backup does not contain exactly one approved entry.")
+        operation = operations[0]
+        entry = value["entries"][0]
+        expected_entry = {
+            "target": operation.get("target"),
+            "action": operation.get("action"),
+            "ownership": operation.get("ownership"),
+            "existed": False,
+            "backup_path": None,
+            "original_sha256": None,
+            "original_mode": None,
+            "expected_applied_sha256": operation.get("after_sha256"),
+            "expected_applied_mode": operation.get("after_mode"),
+            "managed_section": None,
+        }
+        if entry != expected_entry:
+            raise _failure("Bootstrap backup entry does not match the approved plan.")
+
     if transaction_record is not None:
         if value["transaction_id"] != transaction_record["transaction_id"]:
             raise _failure("Backup transaction identity does not match.")
@@ -358,12 +423,26 @@ def validate_backup(
             raise _failure("Backup target HEAD does not match the transaction.")
         if value["target_status_fingerprint"] != transaction_record["target_status_fingerprint"]:
             raise _failure("Backup target status does not match the transaction.")
+        if value.get("operation_kind") != transaction_record.get(
+            "operation_kind", "fixture_update"
+        ):
+            raise _failure("Backup operation kind does not match the transaction.")
+        if value.get("authorization_sha256") != transaction_record.get("authorization_sha256"):
+            raise _failure("Backup authorization digest does not match the transaction.")
+        for field in ("parent_directory", "protected_worktrees", "common_git_state"):
+            if value.get(field) != transaction_record.get(field):
+                raise _failure(
+                    "Backup preservation contract does not match the transaction.",
+                    contract_field=field,
+                )
         snapshot_contract = {
             "transaction_id": transaction_snapshot.get("transaction_id"),
             "plan_sha256": transaction_snapshot.get("plan_sha256"),
             "manifest_sha256": transaction_snapshot.get("manifest_sha256"),
             "target_head_planned": transaction_snapshot.get("target_head_planned"),
             "target_status_fingerprint": transaction_snapshot.get("target_status_fingerprint"),
+            "operation_kind": transaction_snapshot.get("operation_kind", "fixture_update"),
+            "authorization_sha256": transaction_snapshot.get("authorization_sha256"),
         }
         current_contract = {
             "transaction_id": transaction_record["transaction_id"],
@@ -371,6 +450,8 @@ def validate_backup(
             "manifest_sha256": transaction_record["manifest_sha256"],
             "target_head_planned": transaction_record["target_head_planned"],
             "target_status_fingerprint": transaction_record["target_status_fingerprint"],
+            "operation_kind": transaction_record.get("operation_kind", "fixture_update"),
+            "authorization_sha256": transaction_record.get("authorization_sha256"),
         }
         if snapshot_contract != current_contract:
             raise _failure("Backup transaction snapshot contract does not match.")

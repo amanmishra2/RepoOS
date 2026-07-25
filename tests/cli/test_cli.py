@@ -4,7 +4,9 @@ import json
 from pathlib import Path
 
 import pytest
+from conftest import git
 
+from repoos import __version__
 from repoos.cli import build_parser, main
 from repoos.validation import repo_root
 
@@ -21,6 +23,8 @@ def test_top_level_help_lists_minimum_commands() -> None:
         "audit",
         "check-update",
         "plan-update",
+        "plan-manifest-bootstrap",
+        "authorize-manifest-bootstrap",
         "apply",
         "rollback",
         "transaction",
@@ -266,3 +270,233 @@ def test_transactional_cli_end_to_end_json(
     assert exit_code == 0
     assert rolled_back["state"] == "rolled_back"
     assert not (repoos_fixture / "managed" / "value.txt").exists()
+
+
+def test_manifest_bootstrap_cli_end_to_end_json(
+    capsys: pytest.CaptureFixture[str],
+    git_repository: Path,
+    tmp_path: Path,
+) -> None:
+    (git_repository / "validate.py").write_text("raise SystemExit(0)\n", encoding="utf-8")
+    git(git_repository, "add", "validate.py")
+    git(git_repository, "commit", "-m", "Add synthetic validation")
+    manifest = tmp_path / "manifest.yaml"
+    manifest.write_text(
+        "\n".join(
+            [
+                "manifest_version: 1",
+                "project_id: synthetic-cli",
+                f"repoos_version: {__version__}",
+                "project_family: synthetic-python",
+                "sensitivity_classification: internal",
+                "additional_overlays: []",
+                "components:",
+                "  managed: []",
+                "  generated: []",
+                "  repository_owned: [project-source]",
+                "  extensions: []",
+                "  excluded: []",
+                "adoption_channel: canary",
+                "local_overrides: []",
+                "verification:",
+                "  - name: tests",
+                "    argv: [python3, validate.py]",
+                "automation_permissions:",
+                "  read_only: true",
+                "  plan: true",
+                "  apply: false",
+                "  commit: false",
+                "  push: false",
+                "  external_settings: false",
+                "last_successful_audit: null",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    plan = tmp_path / "bootstrap-plan.json"
+    state = tmp_path / "state"
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "plan-manifest-bootstrap",
+            "--repo",
+            str(git_repository),
+            "--manifest-input",
+            str(manifest),
+            "--output",
+            str(plan),
+        ]
+    )
+    assert exit_code == 0
+    assert json.loads(capsys.readouterr().out)["operation_kind"] == "manifest_bootstrap"
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "apply",
+            "--plan",
+            str(plan),
+            "--dry-run",
+        ]
+    )
+    preview = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert preview["ready_for_authorization"] is True
+    assert preview["authorization_status"] == "missing"
+    assert not state.exists()
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "apply",
+            "--plan",
+            str(plan),
+            "--execute",
+        ]
+    )
+    missing = json.loads(capsys.readouterr().err)
+    assert exit_code == 9
+    assert missing["error"]["type"] == "missing_authorization"
+    assert not state.exists()
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "authorize-manifest-bootstrap",
+            "--plan",
+            str(plan),
+            "--approve",
+            "--expires-in",
+            "600",
+        ]
+    )
+    authorization_result = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    authorization = authorization_result["authorization"]
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "apply",
+            "--plan",
+            str(plan),
+            "--authorization",
+            authorization,
+            "--execute",
+        ]
+    )
+    applied = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert applied["authorization"] == "consumed"
+    assert (git_repository / ".repoos" / "project.yaml").is_file()
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "transaction",
+            "show",
+            applied["transaction_id"],
+        ]
+    )
+    shown = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert shown["transaction"]["operation_kind"] == "manifest_bootstrap"
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "--state-dir",
+            str(state),
+            "rollback",
+            "--transaction",
+            applied["transaction_id"],
+        ]
+    )
+    rolled_back = json.loads(capsys.readouterr().out)
+    assert exit_code == 0
+    assert rolled_back["state"] == "rolled_back"
+    assert not (git_repository / ".repoos").exists()
+
+
+def test_manifest_bootstrap_plan_output_cannot_write_a_sibling_worktree(
+    capsys: pytest.CaptureFixture[str],
+    git_repository: Path,
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "target"
+    sibling = tmp_path / "sibling"
+    git(git_repository, "worktree", "add", "-b", "bootstrap-target", str(target))
+    git(git_repository, "worktree", "add", "-b", "protected-sibling", str(sibling))
+    manifest = tmp_path / "manifest.yaml"
+    manifest.write_text(
+        "\n".join(
+            [
+                "manifest_version: 1",
+                "project_id: synthetic-cli",
+                f"repoos_version: {__version__}",
+                "project_family: null",
+                "sensitivity_classification: internal",
+                "additional_overlays: []",
+                "components:",
+                "  managed: []",
+                "  generated: []",
+                "  repository_owned: []",
+                "  extensions: []",
+                "  excluded: []",
+                "adoption_channel: canary",
+                "local_overrides: []",
+                "verification:",
+                "  - name: tests",
+                "    argv: [python3, -m, pytest]",
+                "automation_permissions:",
+                "  read_only: true",
+                "  plan: true",
+                "  apply: false",
+                "  commit: false",
+                "  push: false",
+                "  external_settings: false",
+                "last_successful_audit: null",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    output = sibling / "bootstrap-plan.json"
+
+    exit_code = main(
+        [
+            "--format",
+            "json",
+            "plan-manifest-bootstrap",
+            "--repo",
+            str(target),
+            "--manifest-input",
+            str(manifest),
+            "--output",
+            str(output),
+        ]
+    )
+    error = json.loads(capsys.readouterr().err)
+    assert exit_code == 4
+    assert error["error"]["type"] == "unsafe_state"
+    assert not output.exists()

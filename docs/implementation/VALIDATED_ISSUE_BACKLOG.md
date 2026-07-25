@@ -1,6 +1,7 @@
 # Validated implementation backlog
 
 Validated: 2026-07-23
+Updated: 2026-07-25
 Authority: local backlog only; no GitHub issues were created
 
 ## Dependency graph
@@ -19,7 +20,8 @@ flowchart LR
   R9 --> R8["ROS-008"]
   R4 --> R10["ROS-010"]
   R9 --> R10
-  R6 --> R11["ROS-011"]
+  R6 --> R13["ROS-013"]
+  R13 --> R11["ROS-011"]
   R8 --> R11
   R9 --> R11
   R11 --> R12["ROS-012"]
@@ -29,7 +31,10 @@ This graph removes the Phase 1 ROS-001/ROS-003 cycle, makes real delivery depend
 
 ## Common constraints
 
-Every issue preserves unrelated work, keeps private evidence out of public artifacts, uses explicit targets, rejects dirty/unsafe mutation, and makes no external write without separate authorization. Neutral disposable fixtures are allowed; real portfolio writes are not.
+Every issue preserves unrelated work, keeps private evidence out of public artifacts, uses explicit
+targets, rejects dirty/unsafe mutation, and makes no external write without separate authorization.
+Disposable fixtures and synthetic real-repository worktrees are allowed for tests. Product support
+for authorized manifest bootstrap does not authorize a portfolio write in this backlog run.
 
 ## ROS-001 — Validate Phase 1 and audit the supplied ZIP
 
@@ -230,28 +235,68 @@ Every issue preserves unrelated work, keeps private evidence out of public artif
 - **Status:** completed locally for the Git-tracked foundation and specifications.
 - **Local evidence:** no measured evidence volume justifies AI or a database; Git-tracked decisions are sufficient.
 
+## ROS-013 — Add guarded real-repository manifest bootstrap
+
+- **Objective:** enable the smallest real-repository transaction: create one absent
+  `.repoos/project.yaml` under exact local authorization.
+- **Detailed scope:** separate immutable bootstrap plan/authorization schemas; strict fully
+  materialized manifest validation; exact target/worktree/common-Git/branch/HEAD/plan/content
+  binding; one-use expiring local receipt; content-free sibling classification; common-Git lock;
+  absence-aware backup; exclusive atomic install; repository validation; automatic/manual
+  idempotent rollback; public-safe transaction evidence; JSON/human CLI; installed-wheel proof.
+- **Out of scope:** replacing a manifest; any other real-repository file; overlays/components;
+  branch/ref/config/worktree mutation; commit/push/PR; GitHub/user-global changes; force/limit
+  override; downstream testing or canary execution.
+- **Dependencies:** ROS-006 transaction engine and ROS-009 synthetic harness.
+- **Acceptance criteria:** one create/zero edits/deletes; existing/dirty/stale/unsafe targets fail;
+  dirty sibling is protected without body reads or persisted names; ambiguous/drifting siblings
+  fail; authorization cannot expire/replay/cross target/HEAD; target/siblings/common Git are
+  preserved; rollback restores all pre-existing bytes/modes/state; general real updates remain
+  refused; fixture behavior remains compatible.
+- **Files expected to change:** bootstrap plan/authorization and extended transaction/backup
+  schemas; Git topology, bootstrap, apply/rollback, ownership, CLI, verification, docs, and
+  synthetic tests; version surfaces to `0.3.0`.
+- **Validation commands:** `make verify`; format/lint/type/full Pytest; all-schema
+  validation/doctor; offline build; installed-wheel fixture/bootstrap smoke; diff/private/secret
+  scans.
+- **Risks:** sibling-content disclosure, common-Git mutation, authorization replay, destination
+  race, parent over-delete, rollback drift, and accidental general real-apply enablement.
+- **Rollback:** implementation via Git; transaction rollback removes only its created manifest and
+  an empty transaction-created parent.
+- **Parallelization group:** A4, single transaction-path owner.
+- **Execution wave:** prerequisite to ROS-011.
+- **Status:** completed locally on the guarded-bootstrap branch using synthetic repositories only;
+  the complete 192-test suite and installed-wheel fixture/bootstrap smoke pass; no downstream
+  canary was performed.
+
 ## ROS-011 — Adopt the approved canary in two bounded proposals
 
 - **Objective:** prove adoption, update, validation, review, and forward rollback in one real repository.
-- **Detailed scope:** refresh P08 state; obtain confirmation; isolated branch/worktree; manifest-only proposal; one bounded component proposal; repository-owned checks; rollback rehearsal.
+- **Detailed scope:** refresh P08 and GitHub `main`; preserve P08-W1/P08-W2; create a new isolated
+  issue-linked worktree; obtain exact confirmation; manifest-only plan/dry-run/apply; repository
+  checks; rollback rehearsal; separately approved reapplication and local commit. A later bounded
+  component remains a separate proposal.
 - **Out of scope:** other repositories, broad rollout, organization settings, automatic push/merge, or multiple components.
-- **Dependencies:** ROS-006, ROS-008, ROS-009, explicit user authorization, and a clean/trustworthy P08 base.
+- **Dependencies:** ROS-008, ROS-009, completed ROS-013, explicit user authorization, and a newly
+  created clean/trustworthy P08 worktree from revalidated current `main`.
 - **Acceptance criteria:** approved identity/risk/commands/family/ownership; clean state; reviewed diffs; checks pass; post-adoption plan no-op; forward rollback demonstrated.
-- **Files expected to change:** P08 `.repoos/project.yaml` and one explicitly approved component, plus RepoOS adoption record.
+- **Files expected to change:** first proposal: P08 `.repoos/project.yaml` only. Any component or
+  RepoOS adoption record is a later separately approved proposal.
 - **Validation commands:** exact P08 commands only after user confirmation; RepoOS plan/apply/rollback checks.
-- **Risks:** active untracked work, stale base, behavior regression, private metadata leakage, and
-  attempting manifest bootstrap through the fixture-only product gate.
-- **Rollback:** forward PR to the previous version plus local backup for uncommitted failure.
+- **Risks:** touching P08-W1/P08-W2, stale base, behavior regression, private metadata leakage,
+  authorization reuse, or widening beyond the fixed destination.
+- **Rollback:** automatic/manual transaction rollback before commit; any later committed recovery
+  requires a separately approved forward proposal.
 - **Parallelization group:** A5, single downstream writer.
 - **Execution wave:** 4.
-- **Status:** blocked—preservation-first worktree hygiene, authorization, and a separately validated
-  real-repository manifest-bootstrap gate are required.
+- **Status:** blocked for downstream execution—engine prerequisite is complete, but the later run
+  must revalidate live state, create the isolated worktree, and obtain execute/reapply/commit
+  approvals.
 - **Local evidence:** the
   [2026-07-23 readiness packet](../../reports/canary-readiness/2026-07-23/README.md) confirms two
-  current P08 worktrees and zero prunable records. The primary checkout is clean but 29 commits
-  behind after merge; the secondary has 18 untracked implementation files. The historical
-  16-record/15-prunable snapshot is stale. RepoOS `0.2.0` cannot plan an absent manifest or execute
-  against an unmarked real repository.
+  current P08 worktrees and zero prunable records. P08-W2 contains active or potentially active
+  untracked implementation work and is preserved in place without body inspection; P08-W1 is also
+  unchanged. RepoOS `0.3.0` can protect dirty siblings while operating only in a new clean target.
 
 ## ROS-012 — Govern broad rollout and high-authority extensions
 

@@ -2,6 +2,29 @@
 
 All notable RepoOS changes are recorded here. RepoOS follows Semantic Versioning.
 
+## 0.3.0 — Unreleased
+
+### Added
+
+- A dedicated immutable manifest-bootstrap plan for creating exactly one absent
+  `.repoos/project.yaml` in an explicitly authorized clean Git worktree.
+- Expiring, local-only, one-transaction authorization receipts bound to the exact target,
+  common Git directory, branch, HEAD, plan, manifest digest, destination, and local identity.
+- Content-free sibling-worktree protection fingerprints that allow a dirty sibling while
+  preserving its HEAD, status, index, lock state, and registration unchanged.
+- Exclusive atomic manifest installation, absent-file backup records, automatic/manual
+  rollback, authorization consumption, and stable bootstrap failure classifications.
+- Outside-all-worktrees isolation for manifest, plan, state, and authorization artifacts plus
+  durable device/inode creation evidence that prevents rollback from deleting a raced-in file.
+
+### Compatibility and migration
+
+- Fixture update-plan v2 and its existing apply/rollback behavior remain supported unchanged.
+- Manifest bootstrap uses the separate `repoos.manifest-bootstrap-plan.v1` contract; it does not
+  authorize ordinary real-repository updates, overlays, deletion, commit, push, or GitHub writes.
+- Existing project manifests remain schema-valid. New manifest-bootstrap inputs must include an
+  explicit sensitivity classification and the bounded first-adoption policy required by `0.3.0`.
+
 ## 0.2.0 — Unreleased
 
 ### Added
