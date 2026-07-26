@@ -1,23 +1,37 @@
 # Roadmap
 
-## Phase 1 — Template baseline
+The detailed dependency graph is [VALIDATED_ISSUE_BACKLOG.md](implementation/VALIDATED_ISSUE_BACKLOG.md).
 
-- Add `AGENTS.md` and `MEMORY.md`.
-- Add AgentOps docs and registries.
-- Add reusable Codex config, rules, hooks, subagents, and skills.
-- Add audit scripts and Makefile targets.
-- Add GitHub workflow and PR/issue templates.
+## Foundation
 
-## Phase 2 — Template hardening
+- Complete Phase 1/ZIP/portfolio validation.
+- Establish version, package, schemas, public registry, manifest, read-only CLI, active Codex repair, hosted CI, and neutral semantic tests.
 
-- Replace placeholder audits with stricter checks.
-- Add regression cases from real usage.
-- Add schema validation for tool and MCP registries.
-- Add richer hook smoke tests.
+## Controlled update fixtures
 
-## Phase 3 — Distribution
+- Completed locally: transaction records, atomic approved-path backups, managed/generated/text-section
+  apply, bounded validation, automatic/manual rollback, explicit stale-lock recovery, and
+  public-safe outcomes.
+- Completed locally: dirty/stale/conflict/symlink/lock/pause/limit/interruption/fault-injection,
+  concurrency, idempotency, integrity, and byte-restoration fixtures.
 
-- Package RepoOS as a copyable repo template.
-- Add install script.
-- Add target-repo customization checklist.
-- Add examples for common stacks.
+## Canary
+
+- Completed locally: guarded real-worktree manifest bootstrap with exact authorization,
+  multi-worktree protection, and synthetic rollback proof.
+- In a later run, revalidate GitHub `main` and create a new isolated P08 worktree while preserving
+  P08-W1 and P08-W2.
+- Review dry run; stop for execute approval; apply only the manifest; validate and roll back.
+- Stop for reapplication approval; create only a local manifest commit after all gates.
+- Push, PR, and any bounded component remain separately authorized future work.
+
+## Later
+
+- Add release artifact integrity and compatibility migration before relaxing exact source-version
+  matching.
+- Consider deletion, force recovery, or richer section support only through separate bounded
+  issues with new safety evidence.
+- Broad rollout one repository at a time.
+- Release artifact integrity/retention.
+- Evidence-backed overlays.
+- Optional global installer, GitHub governance, or scheduled learning only after separate authorization and measured need.

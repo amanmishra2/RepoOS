@@ -1,5 +1,0 @@
-# Repo-specific rules
-
-This file is intentionally minimal in the template.
-
-When copying RepoOS into another repository, add only stable repo-specific constraints here. Do not duplicate guidance from `AGENTS.md`, `MEMORY.md`, or `docs/agentops/`.

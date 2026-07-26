@@ -1,0 +1,172 @@
+{
+  "schema_version": "repoos.canary-readiness.v1",
+  "audit_date": "2026-07-23",
+  "mode": "read_only",
+  "publishability": "public_safe",
+  "mapping": {
+    "source": ".repoos/local/projects.private.yaml",
+    "schema_valid": true,
+    "ignored": true,
+    "tracked": false,
+    "exact_values_redacted": true
+  },
+  "repoos": {
+    "version": "0.2.0",
+    "branch": "codex/ros-001-006-phase2-foundation",
+    "audit_base_head": "63db7746964b5c55c56195ed803c50593bc1f114",
+    "start_clean": true
+  },
+  "candidates": [
+    {
+      "project_id": "P08",
+      "rank": 1,
+      "classification": "blocked",
+      "identity": {
+        "resolved": true,
+        "local_remote_github_agree": true,
+        "exact_mapping_redacted": true,
+        "github_exists": true,
+        "visibility": "private",
+        "fork": false,
+        "archived": false,
+        "default_branch": "main",
+        "default_head_matches_local_remote_tracking": true
+      },
+      "git": {
+        "primary_clean": true,
+        "primary_head_behind_default_by": 29,
+        "primary_upstream": "deleted_after_merge",
+        "worktree_records": 2,
+        "prunable_records": 0,
+        "locked_records": 0,
+        "active_dirty_worktrees": 1,
+        "secondary_untracked_entries": 18,
+        "unique_commit_risk_records": 0,
+        "unique_untracked_work_risk_records": 1,
+        "historical_record_count": 16,
+        "historical_prunable_count": 15,
+        "historical_baseline_status": "stale"
+      },
+      "github": {
+        "open_pull_requests": 1,
+        "open_issues_excluding_pull_requests": 48,
+        "active_workflows": 5,
+        "latest_default_product_ci": "success",
+        "latest_default_agentops": "success",
+        "default_branch_protected": false,
+        "ruleset_visibility": "unavailable_for_private_plan",
+        "releases": 0,
+        "sufficient_later_pull_request_access": true
+      },
+      "lifecycle": "active_development",
+      "sensitivity": {
+        "provisional_classification": "personal_data_risk",
+        "user_confirmation_required": true,
+        "raw_learning_ingestion_allowed": false
+      },
+      "family": {
+        "classification": "python_cli_application",
+        "project_family": null,
+        "additional_overlays": [],
+        "overlay_implemented": false
+      },
+      "validation": {
+        "tracked_default_snapshot": "passed",
+        "product_tests_passed": 339,
+        "product_tests_skipped": 1,
+        "agentops_tests_passed": 297,
+        "no_network_tests_passed": 5,
+        "ruff": "passed",
+        "mypy": "passed",
+        "doctor": "passed",
+        "build": "undocumented_not_run"
+      },
+      "ownership": {
+        "existing_paths_default": "repository_owned",
+        "manifest_exists": false,
+        "first_scope": [
+          ".repoos/project.yaml"
+        ],
+        "first_scope_approved": false,
+        "ordinary_managed_component_selected": false
+      },
+      "transaction": {
+        "classification": "ready_after_small_repoos_enhancement",
+        "real_repository_apply_supported": false,
+        "manifest_bootstrap_supported": false,
+        "deletion_required": false,
+        "managed_section_required": false,
+        "structured_patch_required": false,
+        "one_file_backup_and_rollback_representable": true
+      },
+      "score": {
+        "pass": 10,
+        "partial": 5,
+        "fail": 4
+      }
+    },
+    {
+      "project_id": "P04-B",
+      "rank": 2,
+      "classification": "unsuitable_as_first_canary",
+      "identity": {
+        "resolved": true,
+        "remote_verified": true,
+        "shares_repository_with": "P04-A",
+        "exact_mapping_redacted": true,
+        "github_exists": true,
+        "visibility": "public",
+        "default_branch": "main"
+      },
+      "git": {
+        "target_clean": true,
+        "behind_live_default_by": 67,
+        "behind_own_remote_branch_by": 7,
+        "shared_common_git": true,
+        "shared_worktree_records": 64,
+        "shared_prunable_records": 10,
+        "p04_a_tracked_changes": 3,
+        "p04_a_untracked_entries": 54,
+        "independent_rollback_boundary": false
+      },
+      "github": {
+        "open_pull_requests": 18,
+        "open_issues_excluding_pull_requests": 55,
+        "active_workflows": 2,
+        "default_branch_protected": false,
+        "rulesets": 0,
+        "releases": 0
+      },
+      "lifecycle": "active_development",
+      "transaction": {
+        "classification": "blocked_shared_dirty_common_git",
+        "real_repository_apply_supported": false
+      },
+      "score": {
+        "pass": 7,
+        "partial": 6,
+        "fail": 6
+      }
+    }
+  ],
+  "decision": {
+    "provisional_candidate": "P08",
+    "real_canary_authorized": false,
+    "fallback_preferred": false,
+    "next_outcome": "p08_requires_hygiene_first",
+    "next_prompt": "13_NEXT_CANARY_ADOPTION_PROMPT.md",
+    "next_prompt_status": "executed_no_downstream_change",
+    "execution_record": "../../canary-hygiene/2026-07-23/README.md"
+  },
+  "safety": {
+    "downstream_writes": 0,
+    "worktree_metadata_pruned": false,
+    "remotes_changed": false,
+    "branches_changed": false,
+    "github_resources_changed": false,
+    "user_global_files_changed": false,
+    "push_performed": false,
+    "pull_request_opened": false,
+    "likely_secret_files_opened": false
+  }
+}

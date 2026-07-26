@@ -1,63 +1,144 @@
 # RepoOS
 
-RepoOS is a reusable Continuous AgentOps template for making repositories more agent-legible, testable, and self-improving.
+RepoOS is a deterministic control plane for safely inspecting, validating, and planning operating-layer changes across independently owned repositories.
 
-Operating principle:
+It is not a static template copier, monorepo parent, runtime dependency, autonomous mutation service, or organization-governance controller.
 
-> Every repeated agent mistake becomes either a test, a hook, a skill, a doc update, a subagent role, a schema constraint, or a repo-structure change.
+## Current status
 
-## What this template provides
+Version `0.3.0` preserves the fixture transaction engine and adds one guarded real-repository
+operation:
 
-- Short, map-like `AGENTS.md` for agent onboarding.
-- Durable `MEMORY.md` for stable repo facts and repeated failure patterns.
-- AgentOps documentation for docs, folder structure, hooks, MCPs, tools, function calls, evals, and harness engineering.
-- Codex configuration, rules, subagents, hooks, and reusable skills.
-- Lightweight audit scripts and Makefile targets.
-- GitHub Actions, issue templates, and PR checklist gates.
-- A bounded Ralph Wiggum loop protocol for safe iterative improvement.
+- bounded, first-level discovery and metadata inventory;
+- public-safe output redaction;
+- target/sibling/common-Git worktree inspection without sibling file-body reads;
+- strict schemas for registry, manifest, learning, adoption, update plans, transactions, backups,
+  and public-safe transaction outcomes;
+- deterministic validation, diff, audit, status, doctor, update-check, planning, and reporting commands;
+- pause, global-recovery, and per-common-Git process-visible locks;
+- immutable fixture planning for managed/generated files, managed text sections, and preserved
+  repository ownership;
+- dry-run precondition proof with no target or state writes;
+- approved-path backups, atomic apply, bounded validation, automatic rollback, drift-aware manual
+  rollback, and transaction inspection.
+- immutable first-manifest planning, exact expiring one-use local authorization, exclusive atomic
+  creation, protected sibling preservation, and absence-aware rollback.
 
-## Runner requirement
+Fixture update remains restricted to disposable Git repositories explicitly marked
+`.repoos-fixture`. The only real-repository execution is an authorized `manifest_bootstrap` that
+creates an absent `.repoos/project.yaml` in one clean worktree. All other real-repository writes
+and user-global files remain ineligible. RepoOS does not commit, push, open PRs, merge, change Git
+refs/worktrees or GitHub settings, register runners, or install user-global Codex files.
 
-RepoOS GitHub Actions are configured for a repository-level MacBook self-hosted runner with these labels:
+## Quick start
 
-```yaml
-runs-on: [self-hosted, macOS, ARM64]
-```
-
-See `docs/agentops/github-actions-runners.md` before copying this template into a target repository. If a target repo should use GitHub-hosted runners instead, update `.github/workflows/agentops.yml` accordingly.
-
-## Install into another repo
-
-Copy the template files into the target repository, then run:
+Use the source tree without installing:
 
 ```bash
-make agentops-pr
-make hooks-smoke
-make mcp-smoke
+PYTHONPATH=src python3 -m repoos --help
+PYTHONPATH=src python3 -m repoos --format json doctor
+PYTHONPATH=src python3 -m repoos --format json validate --all
+python3 -m pytest
 ```
 
-Then customize only the project-specific documents:
+Install for development when dependencies are available:
 
-- `README.md`
-- `docs/ROADMAP.md`
-- `docs/verification.md`
-- `docs/issue-map.md`
-- `docs/specs/`
-- `docs/agentops/github-actions-runners.md` if the target repo uses different runner labels
+```bash
+python3 -m pip install -e ".[dev]"
+repoos --help
+```
 
-Keep `.codex/`, `.agents/skills/`, and `docs/agentops/` generic unless the target repo needs a repo-specific override.
+Discovery defaults to `~/Coding`, scans direct child directories only, aliases private identities by default, and never updates the registry implicitly:
 
-## Core rules
+```bash
+repoos --format json discover
+repoos --privacy local --format json inventory --project /explicit/project
+```
 
-1. `AGENTS.md` is a map, not a manual.
-2. `MEMORY.md` stores durable repo facts, not notes.
-3. Every repeated mistake becomes a guardrail.
-4. Every guardrail must be testable.
-5. Every tool must have a contract.
-6. Every MCP must have a registry entry and smoke test.
-7. Every hook must be deterministic and low-noise.
-8. Every large workflow must have a plan.
-9. Every completed plan must be archived.
-10. Every stale doc must be updated, moved, or deleted.
-11. Every agent loop must be bounded.
-12. Every claim of completion must include verification.
+Fixture update flow:
+
+```bash
+repoos --format json plan-update \
+  --repo /fixture/repository \
+  --source-root /fixture/components \
+  --file source.txt=managed/target.txt \
+  --output /tmp/plan.json
+repoos --state-dir /tmp/repoos-state --format json \
+  apply --plan /tmp/plan.json --dry-run
+repoos --state-dir /tmp/repoos-state --format json \
+  apply --plan /tmp/plan.json --execute
+repoos --state-dir /tmp/repoos-state transaction list
+repoos --state-dir /tmp/repoos-state \
+  rollback --transaction <transaction-id>
+```
+
+See [Update a fixture repository](docs/operations/UPDATE_REPOSITORY.md) and
+[Transaction rollback](docs/operations/ROLLBACK.md).
+
+Guarded manifest bootstrap:
+
+```bash
+repoos --format json plan-manifest-bootstrap \
+  --repo /clean/isolated/worktree \
+  --manifest-input /outside/worktrees/project.yaml \
+  --output /outside/worktrees/bootstrap-plan.json
+repoos --state-dir /local/repoos-state --format json \
+  apply --plan /outside/worktrees/bootstrap-plan.json --dry-run
+repoos --state-dir /local/repoos-state --format json \
+  authorize-manifest-bootstrap \
+  --plan /outside/worktrees/bootstrap-plan.json --approve
+repoos --state-dir /local/repoos-state --format json \
+  apply --plan /outside/worktrees/bootstrap-plan.json \
+  --authorization /path/from-authorization-output.json --execute
+```
+
+See [Onboard an existing repository](docs/operations/ONBOARD_EXISTING_REPOSITORY.md) for the exact
+manifest, worktree, authorization, and rollback contract.
+
+## Safety contract
+
+- Unknown ownership is repository-owned.
+- Similarity never transfers ownership.
+- Discovery and analysis are read-only.
+- A plan is not authorization.
+- Fixture mutation requires a marked disposable repository and update-plan v2.
+- Manifest bootstrap requires a clean exact target, current HEAD/branch/plan/manifest, unambiguous
+  protected siblings, a common-Git lock, fixed limits, validated backup, and one-use authorization.
+- A dirty sibling is protected separately from target cleanliness; RepoOS never opens its bodies,
+  persists its untracked names, cleans it, or writes it.
+- No portfolio-wide write command exists.
+- Private mappings, raw Git evidence, secrets, databases, logs, and project content do not belong in this public repository.
+- AI may propose or summarize; deterministic code and humans enforce and approve.
+
+The authoritative policy is [Command safety](policies/security/COMMAND_SAFETY.md).
+
+## Architecture and operations
+
+- [Validated architecture](docs/implementation/VALIDATED_ARCHITECTURE.md)
+- [Validated migration plan](docs/implementation/VALIDATED_MIGRATION_PLAN.md)
+- [File ownership](docs/implementation/FILE_OWNERSHIP_MODEL.md)
+- [Automation boundaries](docs/implementation/AUTOMATION_BOUNDARIES.md)
+- [CLI reference](docs/reference/CLI.md)
+- [Verification](docs/verification.md)
+
+## Portfolio state
+
+The Phase 2 baseline found 14 first-level directories, including four dirty Git working trees, two
+conditional clean working trees, and seven non-Git roots. RepoOS was the only low-ambiguity
+implementation target. A downstream canary remains a separate authorized run. It must use a newly
+created isolated worktree; existing P08-W1 and active/potentially-active P08-W2 stay unchanged.
+
+Committed reports use aliases because RepoOS is public. See [portfolio baseline](reports/baseline/portfolio-inventory.md).
+
+## GitHub Actions
+
+RepoOS CI uses GitHub-hosted ephemeral runners, read-only token permissions, concurrency cancellation, timeouts, and full-SHA-pinned third-party actions. Self-hosted runners and organization settings are separate authorization-dependent decisions.
+
+## Core principles
+
+1. Repository autonomy is the default.
+2. Every behavioral claim needs a semantic test.
+3. Every mutation needs preview, ownership, limits, backup, and rollback.
+4. Every repeated failure should become a proportionate guardrail.
+5. Every external write needs exact authority.
+6. Every completion claim includes evidence and remaining limitations.

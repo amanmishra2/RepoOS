@@ -1,32 +1,3 @@
 {
-  "SessionStart": [
-    {
-      "name": "load-agent-map",
-      "command": "python tools/agentops/hook_router.py session-start"
-    }
-  ],
-  "UserPromptSubmit": [
-    {
-      "name": "prompt-scope-check",
-      "command": "python tools/agentops/hook_router.py prompt-scope"
-    }
-  ],
-  "PreToolUse": [
-    {
-      "name": "dangerous-action-guard",
-      "command": "python tools/agentops/hook_router.py pre-tool"
-    }
-  ],
-  "PostToolUse": [
-    {
-      "name": "tool-result-audit",
-      "command": "python tools/agentops/hook_router.py post-tool"
-    }
-  ],
-  "Stop": [
-    {
-      "name": "verification-reminder",
-      "command": "python tools/agentops/hook_router.py stop"
-    }
-  ]
+  "hooks": {}
 }

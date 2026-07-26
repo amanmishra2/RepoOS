@@ -1,57 +1,26 @@
-# Recurring Audits
+# Recurring audits
 
-RepoOS CI is expected to run on a repository-level MacBook self-hosted runner with labels `self-hosted`, `macOS`, and `ARM64`. Include runner health in audit reviews.
+All initial recurring work is read-only and idempotent.
 
 ## Every PR
 
-Run:
-
 ```bash
-make agentops-pr
+make verify
 ```
 
-Checks:
+Run semantic tests, schema/Codex/workflow validation, lint, format, types, CLI smoke checks, and build.
 
-- `AGENTS.md` stays short.
-- `MEMORY.md` remains durable.
-- Changed files are reflected in folder map if needed.
-- New tools/functions have registries and tests.
-- Hooks pass smoke checks.
-- MCP registry is updated if MCP config changed.
-- Docs are updated when behavior changed.
-- The MacBook self-hosted runner is online before relying on GitHub Actions status.
+## Weekly cross-project review
 
-## Weekly
+Use redacted reports to identify repeated evidence, exceptions, drift, and false claims. Do not execute project code or modify registries.
 
-Run:
+## Biweekly proposal review
 
-```bash
-make agentops-weekly
-```
+Generate plans only for explicit clean targets with confirmed ownership and commands. Planning is not approval.
 
-Checks:
+## Monthly architecture audit
 
-- Stale docs
-- Orphan docs
-- Duplicate instructions
-- Folder sprawl
-- Prompt-library bloat
-- Unused hooks, skills, or subagents
-- Self-hosted runner is online and has expected labels
+Review ownership collisions, exception rate, rollback readiness, action pins, schema compatibility, confidentiality, and whether any overlay still has at least two valid consumers.
 
-## Monthly
-
-Run:
-
-```bash
-make agentops-monthly
-```
-
-Checks:
-
-- Agent legibility score
-- Harness health score
-- MCP necessity
-- Hook noise
-- Top repeated agent defects
-- Whether the MacBook runner is still the right default for this repo or template target
+No schedule is installed by RepoOS `0.3.0`; operators may invoke these manually or through
+read-only CI after review.

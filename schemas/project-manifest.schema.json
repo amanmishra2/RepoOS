@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/project-manifest.schema.json",
+  "title": "RepoOS repository manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "project_id",
+    "repoos_version",
+    "project_family",
+    "additional_overlays",
+    "components",
+    "adoption_channel",
+    "local_overrides",
+    "verification",
+    "automation_permissions",
+    "last_successful_audit"
+  ],
+  "properties": {
+    "manifest_version": {"const": 1},
+    "project_id": {"$ref": "#/$defs/id"},
+    "repoos_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "project_family": {
+      "oneOf": [{"$ref": "#/$defs/id"}, {"type": "null"}]
+    },
+    "sensitivity_classification": {
+      "enum": ["public", "internal", "confidential", "personal_data", "restricted"]
+    },
+    "additional_overlays": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["managed", "generated", "repository_owned", "extensions", "excluded"],
+      "properties": {
+        "managed": {"$ref": "#/$defs/id_list"},
+        "generated": {"$ref": "#/$defs/id_list"},
+        "repository_owned": {"$ref": "#/$defs/id_list"},
+        "extensions": {"$ref": "#/$defs/id_list"},
+        "excluded": {"$ref": "#/$defs/id_list"}
+      }
+    },
+    "adoption_channel": {"enum": ["experimental", "canary", "stable", "required"]},
+    "local_overrides": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["component", "reason", "owner", "review_date"],
+        "properties": {
+          "component": {"$ref": "#/$defs/id"},
+          "reason": {"type": "string", "minLength": 1},
+          "owner": {"type": "string", "minLength": 1},
+          "review_date": {"type": "string", "format": "date"},
+          "expires": {
+            "oneOf": [{"type": "string", "format": "date"}, {"type": "null"}]
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/command"},
+      "minItems": 1
+    },
+    "automation_permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read_only", "plan", "apply", "commit", "push", "external_settings"],
+      "properties": {
+        "read_only": {"type": "boolean"},
+        "plan": {"type": "boolean"},
+        "apply": {"type": "boolean"},
+        "commit": {"type": "boolean"},
+        "push": {"type": "boolean"},
+        "external_settings": {"type": "boolean"}
+      }
+    },
+    "last_successful_audit": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "evidence_ref"],
+          "properties": {
+            "status": {"const": "passed"},
+            "evidence_ref": {"type": "string", "minLength": 1}
+          }
+        },
+        {"type": "null"}
+      ]
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "id_list": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argv"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "argv": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1
+        }
+      }
+    }
+  }
+}

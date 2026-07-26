@@ -1,0 +1,14 @@
+schema_version: 1
+name: monthly-architecture-audit
+enabled: manual
+home: manual-or-codex-task
+read_only: true
+checks:
+  - ownership-collisions
+  - exception-rate
+  - schema-compatibility
+  - action-pin-integrity
+  - rollback-readiness
+  - public-private-evidence-boundary
+  - overlay-consumer-count
+external_writes: false

@@ -1,4 +1,3 @@
-from pathlib import Path
 from tools.agentops.common import ROOT, main_check
 
 markers = ["DEPRECATED", "STALE", "TODO"]

@@ -1,22 +1,19 @@
-# Hook Registry
+# Hook registry
 
-Hooks should be deterministic, low-noise, and testable.
+RepoOS `0.3.0` has no active Codex hooks:
 
-| Hook | Event | Purpose | Blocks? | Test command |
-|---|---|---|---:|---|
-| load-agent-map | SessionStart | Surface key repo guidance | No | `make hooks-smoke` |
-| prompt-scope-check | UserPromptSubmit | Warn about ambiguous or risky scope | No | `make hooks-smoke` |
-| dangerous-action-guard | PreToolUse | Guard destructive or secret-touching actions | Yes | `make hooks-smoke` |
-| tool-result-audit | PostToolUse | Capture tool result anomalies | No | `make hooks-smoke` |
-| verification-reminder | Stop | Remind agent to report verification | No | `make hooks-smoke` |
+```json
+{"hooks": {}}
+```
 
-## Hook standard
+The previous router ignored event input and always exited successfully, so it could not enforce its blocking claim. It was removed rather than preserved as false safety.
 
-A hook is allowed only if:
+A future hook requires current-schema structure, stable execution path, bounded timeout, project trust review, event payload parsing, positive/negative/bypass/subdirectory fixtures, actionable output, and a matching registry claim.
 
-- It has one purpose.
-- It is deterministic.
-- It has an actionable message.
-- It is classified as blocking or warning.
-- It has a smoke test.
-- It does not duplicate CI without a reason.
+Hooks are defense in depth. Dirty-state, path, ownership, pause, lock, plan, and authorization checks belong in deterministic RepoOS code.
+
+Validation:
+
+```bash
+make hooks-smoke
+```

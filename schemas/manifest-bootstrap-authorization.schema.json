@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/manifest-bootstrap-authorization.schema.json",
+  "title": "RepoOS local manifest-bootstrap authorization",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "authorization_version",
+    "authorization_id",
+    "operation_kind",
+    "state",
+    "target_repository",
+    "target_worktree_id",
+    "git_common_dir",
+    "target_head",
+    "target_branch",
+    "plan_id",
+    "plan_digest",
+    "manifest_sha256",
+    "destination",
+    "created_at",
+    "expires_at",
+    "authorizer",
+    "reserved_at",
+    "reserved_transaction_id",
+    "consumed_at",
+    "outcome"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "authorization_version": {"const": "repoos.manifest-bootstrap-authorization.v1"},
+    "authorization_id": {
+      "type": "string",
+      "pattern": "^authorization-[a-f0-9]{64}$"
+    },
+    "operation_kind": {"const": "manifest_bootstrap"},
+    "state": {"enum": ["approved", "reserved", "consumed"]},
+    "target_repository": {"type": "string", "minLength": 1},
+    "target_worktree_id": {"$ref": "#/$defs/hash"},
+    "git_common_dir": {"type": "string", "minLength": 1},
+    "target_head": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "target_branch": {"type": "string", "minLength": 1, "maxLength": 255},
+    "plan_id": {"type": "string", "pattern": "^plan-[a-f0-9]{64}$"},
+    "plan_digest": {"$ref": "#/$defs/hash"},
+    "manifest_sha256": {"$ref": "#/$defs/hash"},
+    "destination": {"const": ".repoos/project.yaml"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "authorizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uid", "identity_sha256"],
+      "properties": {
+        "uid": {"type": "integer", "minimum": 0},
+        "identity_sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "reserved_at": {
+      "oneOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]
+    },
+    "reserved_transaction_id": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^tx-[0-9]{8}T[0-9]{6}Z-[a-f0-9]{12}$"
+        },
+        {"type": "null"}
+      ]
+    },
+    "consumed_at": {
+      "oneOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]
+    },
+    "outcome": {
+      "oneOf": [
+        {"enum": ["completed", "rolled_back", "interrupted", "failed"]},
+        {"type": "null"}
+      ]
+    }
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  }
+}

@@ -1,47 +1,24 @@
-# GitHub Actions Runners
+# GitHub Actions runners
 
-RepoOS is configured to run GitHub Actions on a repository-level MacBook self-hosted runner.
+RepoOS initial CI uses GitHub-hosted `ubuntu-latest` ephemeral runners.
 
-## Required runner labels
+## Trust policy
 
-The default workflow expects these labels:
+- Public pull-request code does not run on a persistent personal machine.
+- Token permissions are explicitly read-only.
+- Third-party actions are pinned to verified full commit SHAs.
+- Jobs have concurrency cancellation and timeouts.
+- CI receives no RepoOS secrets.
 
-```yaml
-runs-on: [self-hosted, macOS, ARM64]
-```
+The current workflow tests Python 3.11 and 3.13. It does not register, label, or manage runners.
 
-The runner should appear in GitHub under:
+## Self-hosting
 
-```text
-Repository → Settings → Actions → Runners
-```
-
-## Why RepoOS uses a MacBook runner
-
-RepoOS is intended to mirror local agent workflows as closely as possible. A MacBook self-hosted runner is useful when repo automation needs to validate the same environment used for local Codex, hooks, scripts, and developer workflows.
-
-## Setup checklist
-
-- [ ] Register a self-hosted runner at the repository level.
-- [ ] Confirm the runner is online.
-- [ ] Confirm labels include `self-hosted`, `macOS`, and `ARM64`.
-- [ ] Keep the runner app/process active on the MacBook.
-- [ ] Run the first PR workflow and confirm the job is picked up by the MacBook.
-
-## Operational notes
-
-- If the MacBook is asleep, offline, or the runner process is stopped, GitHub Actions jobs will queue.
-- If a target repo should use GitHub-hosted runners instead, change `.github/workflows/agentops.yml` back to `ubuntu-latest` or the appropriate hosted runner.
-- Keep runner-specific assumptions documented here and in `docs/verification.md`.
+Self-hosted runners are deferred. Enabling one requires explicit authorization and an isolation, ephemeral lifecycle, repository allowlist, labels/groups, secret boundary, patching, monitoring, and incident/revocation plan. A runner should not be added merely to mirror a developer laptop.
 
 ## Validation
 
-After setup, run or trigger:
-
 ```bash
-make agentops-pr
-make hooks-smoke
-make mcp-smoke
+python3 -m pytest tests/codex/test_codex_validation.py
+PYTHONPATH=src python3 -m repoos --format json validate --all
 ```
-
-Then confirm the GitHub Actions job runs on the self-hosted MacBook runner.

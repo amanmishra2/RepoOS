@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/project-registry.schema.json",
+  "title": "RepoOS public project registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "privacy", "private_overlay", "projects"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "privacy": {"const": "public_safe"},
+    "private_overlay": {"type": "string", "minLength": 1},
+    "projects": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/project"},
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "component_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "path",
+        "repository",
+        "project_family",
+        "additional_overlays",
+        "managed_components",
+        "excluded_components",
+        "risk_level",
+        "automation_policy",
+        "adoption_state",
+        "blocked_state",
+        "last_audit"
+      ],
+      "properties": {
+        "project_id": {"$ref": "#/$defs/component_id"},
+        "path": {"type": "string", "minLength": 1},
+        "repository": {"type": ["string", "null"], "minLength": 1},
+        "project_family": {
+          "oneOf": [{"$ref": "#/$defs/component_id"}, {"type": "null"}]
+        },
+        "additional_overlays": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/component_id"},
+          "uniqueItems": true
+        },
+        "managed_components": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/component_id"},
+          "uniqueItems": true
+        },
+        "excluded_components": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/component_id"},
+          "uniqueItems": true
+        },
+        "risk_level": {"enum": ["low", "medium", "high", "critical", "unknown"]},
+        "automation_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["read_only", "plan", "apply", "external_writes"],
+          "properties": {
+            "read_only": {"enum": ["allowed", "denied"]},
+            "plan": {"enum": ["allowed", "denied"]},
+            "apply": {"enum": ["denied", "fixture_only", "approved_only"]},
+            "external_writes": {"enum": ["denied", "approved_only"]}
+          }
+        },
+        "adoption_state": {
+          "enum": ["unadopted", "foundation", "experimental", "canary", "stable", "deferred", "excluded"]
+        },
+        "blocked_state": {"type": ["string", "null"]},
+        "last_audit": {
+          "oneOf": [
+            {"type": "string", "format": "date"},
+            {"type": "null"}
+          ]
+        }
+      }
+    }
+  }
+}

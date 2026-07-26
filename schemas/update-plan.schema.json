@@ -1,0 +1,296 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://repoos.dev/schemas/update-plan.schema.json",
+  "title": "RepoOS immutable fixture update plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "plan_version",
+    "plan_id",
+    "repoos_source_version",
+    "project_id",
+    "target_repository",
+    "repository_path_sha256",
+    "source_root",
+    "source_root_sha256",
+    "git_common_dir_sha256",
+    "base_commit",
+    "status_fingerprint",
+    "repository_file_count",
+    "manifest",
+    "from_version",
+    "to_version",
+    "components",
+    "operations",
+    "validation_commands",
+    "safety",
+    "conflicts",
+    "dry_run_default"
+  ],
+  "properties": {
+    "schema_version": {"const": 2},
+    "plan_version": {"const": "repoos.update-plan.v2"},
+    "plan_id": {"type": "string", "pattern": "^plan-[a-f0-9]{64}$"},
+    "repoos_source_version": {"$ref": "#/$defs/version"},
+    "project_id": {"$ref": "#/$defs/id"},
+    "target_repository": {"type": "string", "minLength": 1},
+    "repository_path_sha256": {"$ref": "#/$defs/hash"},
+    "source_root": {"type": "string", "minLength": 1},
+    "source_root_sha256": {"$ref": "#/$defs/hash"},
+    "git_common_dir_sha256": {"$ref": "#/$defs/hash"},
+    "base_commit": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "status_fingerprint": {"$ref": "#/$defs/hash"},
+    "repository_file_count": {"type": "integer", "minimum": 1},
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "sha256"],
+      "properties": {
+        "version": {"type": "integer", "minimum": 1},
+        "sha256": {"$ref": "#/$defs/hash"}
+      }
+    },
+    "from_version": {"$ref": "#/$defs/version"},
+    "to_version": {"$ref": "#/$defs/version"},
+    "components": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/id"},
+      "uniqueItems": true
+    },
+    "operations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/operation"}
+    },
+    "validation_commands": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/command"},
+      "minItems": 1
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limits", "measurements", "violations"],
+      "properties": {
+        "limits": {"$ref": "#/$defs/limits"},
+        "measurements": {"$ref": "#/$defs/measurements"},
+        "violations": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/limit_name"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "dry_run_default": {"const": true}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?$"
+    },
+    "portable_path": {
+      "type": "string",
+      "minLength": 1,
+      "not": {"pattern": "(^/|(^|/)\\.\\.(/|$)|\\\\)"}
+    },
+    "nullable_hash": {
+      "oneOf": [{"$ref": "#/$defs/hash"}, {"type": "null"}]
+    },
+    "nullable_mode": {
+      "oneOf": [
+        {"type": "integer", "minimum": 0, "maximum": 4095},
+        {"type": "null"}
+      ]
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argv"],
+      "properties": {
+        "name": {"$ref": "#/$defs/id"},
+        "argv": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1
+        }
+      }
+    },
+    "managed_section": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start_marker",
+            "end_marker",
+            "before_section_sha256",
+            "before_outside_sha256",
+            "after_section_sha256"
+          ],
+          "properties": {
+            "start_marker": {"type": "string", "minLength": 1},
+            "end_marker": {"type": "string", "minLength": 1},
+            "before_section_sha256": {"$ref": "#/$defs/hash"},
+            "before_outside_sha256": {"$ref": "#/$defs/hash"},
+            "after_section_sha256": {"$ref": "#/$defs/hash"}
+          }
+        },
+        {"type": "null"}
+      ]
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "action",
+        "ownership",
+        "component",
+        "source",
+        "target",
+        "source_sha256",
+        "before_sha256",
+        "after_sha256",
+        "before_mode",
+        "after_mode",
+        "before_size_bytes",
+        "after_size_bytes",
+        "line_stats",
+        "managed_section"
+      ],
+      "properties": {
+        "operation_id": {"type": "string", "pattern": "^op-[a-f0-9]{16}$"},
+        "action": {
+          "enum": ["create", "replace", "section_update", "preserve", "delete"]
+        },
+        "ownership": {
+          "enum": [
+            "managed_file",
+            "managed_section",
+            "generated_file",
+            "repository_owned",
+            "repository_extension",
+            "local_override",
+            "excluded"
+          ]
+        },
+        "component": {"$ref": "#/$defs/id"},
+        "source": {
+          "oneOf": [{"$ref": "#/$defs/portable_path"}, {"type": "null"}]
+        },
+        "target": {"$ref": "#/$defs/portable_path"},
+        "source_sha256": {"$ref": "#/$defs/nullable_hash"},
+        "before_sha256": {"$ref": "#/$defs/nullable_hash"},
+        "after_sha256": {"$ref": "#/$defs/nullable_hash"},
+        "before_mode": {"$ref": "#/$defs/nullable_mode"},
+        "after_mode": {"$ref": "#/$defs/nullable_mode"},
+        "before_size_bytes": {"type": "integer", "minimum": 0},
+        "after_size_bytes": {"type": "integer", "minimum": 0},
+        "line_stats": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["added", "removed"],
+          "properties": {
+            "added": {"type": "integer", "minimum": 0},
+            "removed": {"type": "integer", "minimum": 0}
+          }
+        },
+        "managed_section": {"$ref": "#/$defs/managed_section"}
+      }
+    },
+    "limit_name": {
+      "enum": [
+        "max_files_changed",
+        "max_files_created",
+        "max_files_deleted",
+        "max_total_bytes_changed",
+        "max_lines_added",
+        "max_lines_removed",
+        "max_percentage_repository_files_touched",
+        "allowed_path_prefixes",
+        "forbidden_path_patterns",
+        "max_managed_sections_changed"
+      ]
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_files_changed",
+        "max_files_created",
+        "max_files_deleted",
+        "max_total_bytes_changed",
+        "max_lines_added",
+        "max_lines_removed",
+        "max_percentage_repository_files_touched",
+        "allowed_path_prefixes",
+        "forbidden_path_patterns",
+        "max_managed_sections_changed"
+      ],
+      "properties": {
+        "max_files_changed": {"type": "integer", "minimum": 1},
+        "max_files_created": {"type": "integer", "minimum": 0},
+        "max_files_deleted": {"type": "integer", "minimum": 0},
+        "max_total_bytes_changed": {"type": "integer", "minimum": 1},
+        "max_lines_added": {"type": "integer", "minimum": 0},
+        "max_lines_removed": {"type": "integer", "minimum": 0},
+        "max_percentage_repository_files_touched": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        },
+        "allowed_path_prefixes": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/portable_path"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "forbidden_path_patterns": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "max_managed_sections_changed": {"type": "integer", "minimum": 0}
+      }
+    },
+    "measurements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "files_changed",
+        "files_created",
+        "files_deleted",
+        "total_bytes_changed",
+        "lines_added",
+        "lines_removed",
+        "percentage_repository_files_touched",
+        "managed_sections_changed"
+      ],
+      "properties": {
+        "files_changed": {"type": "integer", "minimum": 0},
+        "files_created": {"type": "integer", "minimum": 0},
+        "files_deleted": {"type": "integer", "minimum": 0},
+        "total_bytes_changed": {"type": "integer", "minimum": 0},
+        "lines_added": {"type": "integer", "minimum": 0},
+        "lines_removed": {"type": "integer", "minimum": 0},
+        "percentage_repository_files_touched": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "managed_sections_changed": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

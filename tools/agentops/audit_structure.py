@@ -1,4 +1,4 @@
-from tools.agentops.common import main_check, require_file, require_any
+from tools.agentops.common import main_check, require_any, require_file
 
 checks = [
     require_file("docs/agentops/folder-structure-map.md"),
